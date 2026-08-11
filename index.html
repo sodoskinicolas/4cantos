@@ -67,6 +67,7 @@ h2.sec{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--m
  font-weight:700;border:1px solid var(--line);background:var(--card2);color:var(--mut);letter-spacing:.2px}
 .pill.ok{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35);color:var(--grn)}
 .pill.ko{background:rgba(248,113,113,.13);border-color:rgba(248,113,113,.3);color:var(--red)}
+.pill.pa{background:rgba(251,191,36,.15);border-color:rgba(251,191,36,.4);color:var(--amb)}
 .sub-h{padding:9px 14px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);
  font-weight:700;background:var(--card2);border-top:1px solid var(--line);display:flex;justify-content:space-between}
 .txt{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);color:var(--tx);font-family:inherit;
@@ -268,15 +269,38 @@ function parseMoney(s){
  if(!d)return 0;
  return (neg?-1:1)*parseInt(d,10)/100;
 }
+/* aceita conta matemática no campo, ex.: 900+1000+300 */
+function isExpr(s){s=String(s).replace(/R\$|\s/g,'');return /[+*/]/.test(s)||/\d-/.test(s);}
+function evalExpr(e){
+ if(!/^[0-9+\-*/().]+$/.test(e))return NaN;
+ try{const r=Function('"use strict";return('+e+')')();return (typeof r==='number'&&isFinite(r))?r:NaN;}catch(_){return NaN;}
+}
+function parseNumBR(s){ // interpreta como REAIS: "1.850,50" -> 1850.5 ; "850" -> 850
+ s=String(s); const neg=s.trim().indexOf('-')===0;
+ s=s.replace(/R\$/g,'').replace(/\s/g,'').replace(/\./g,'').replace(/,/g,'.').replace(/[^0-9.]/g,'');
+ const n=parseFloat(s); if(isNaN(n))return 0; return neg?-Math.abs(n):n;
+}
+function parseVal(s){
+ s=String(s);
+ if(isExpr(s)){
+  const e=s.replace(/R\$/g,'').replace(/\s/g,'').replace(/\./g,'').replace(/,/g,'.');
+  const r=evalExpr(e);
+  return isNaN(r)?0:Math.round(r*100)/100;
+ }
+ return Math.round(parseNumBR(s)*100)/100;
+}
+function valInput(el){ el.value=el.value.replace(/[^0-9+\-*/().,\sR$]/g,''); }
 function negToggle(el){ // permite lançar valor negativo (crédito/estorno)
  el.value = el.value.indexOf('-')>=0 ? el.value.replace('-','') : '-'+el.value;
 }
 
 /* ---------- cálculos ---------- */
+function pagoVal(c){ return c.pago ? c.v : (c.pg>0 ? c.pg : 0); }
+function statusPg(c){ return c.pago ? 'ok' : (c.pg>0 ? 'pa' : 'nao'); }
 function apStats(ap,m){
  let rec=0,recPg=0,cus=0,cusPg=0,ocup=0;
- ap.quartos.forEach(q=>{const c=q.meses[m];rec+=c.v;if(c.pago)recPg+=c.v;if(c.v>0)ocup++;});
- ap.custos.forEach(x=>{const c=x.meses[m];cus+=c.v;if(c.pago)cusPg+=c.v;});
+ ap.quartos.forEach(q=>{const c=q.meses[m];rec+=c.v;recPg+=pagoVal(c);if(c.v>0)ocup++;});
+ ap.custos.forEach(x=>{const c=x.meses[m];cus+=c.v;cusPg+=pagoVal(c);});
  return{rec,recPg,recAb:rec-recPg,cus,cusPg,cusAb:cus-cusPg,lucro:rec-cus,caixa:recPg-cusPg,ocup,
   marg:rec?(rec-cus)/rec:0};
 }
@@ -349,32 +373,41 @@ function vLanc(){
       </div>`;
    } else {
     h+=`<div class="rows">`;
-    ap.quartos.forEach((q,qi)=>{const c=q.meses[MES];
-     h+=`<div class="row"><div class="info"><div class="t">${esc(q.inquilino)||'— vago —'}</div><div class="d">${esc(q.quarto)}</div></div>
-      <input class="val" inputmode="numeric" placeholder="R$ 0,00" value="${inMoney(c.v)}"
-        oninput="maskEl(this)" onchange="setV('q',${ai},${qi},this.value)">
-      <div class="pill ${c.pago?'ok':''}" onclick="tog('q',${ai},${qi})">${c.pago?'RECEBIDO':'PENDENTE'}</div></div>`;});
+    ap.quartos.forEach((q,qi)=>{const c=q.meses[MES];const st=statusPg(c);
+     h+=`<div class="row"><div class="info"><div class="t">${esc(q.inquilino)||'— vago —'}</div><div class="d">${esc(q.quarto)}${st==='pa'?' · recebido '+brl(pagoVal(c)):''}</div></div>
+      <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(c.v)}"
+        oninput="valInput(this)" onchange="setV('q',${ai},${qi},this.value)">
+      <div class="pill ${st==='ok'?'ok':st==='pa'?'pa':''}" onclick="cyclePg('q',${ai},${qi})">${st==='ok'?'RECEBIDO':st==='pa'?'PARCIAL':'PENDENTE'}</div></div>`;});
     h+=`</div><div class="sub-h"><span>Despesas</span></div><div class="rows">`;
-    ap.custos.forEach((x,ci)=>{const c=x.meses[MES];
-     h+=`<div class="row"><div class="info"><div class="t">${esc(x.nome)}</div></div>
-      <input class="val" inputmode="numeric" placeholder="R$ 0,00" value="${inMoney(c.v)}"
-        oninput="maskEl(this)" onchange="setV('c',${ai},${ci},this.value)">
-      <div class="pill ${c.pago?'ko':''}" onclick="tog('c',${ai},${ci})">${c.pago?'PAGO':'PENDENTE'}</div></div>`;});
+    ap.custos.forEach((x,ci)=>{const c=x.meses[MES];const st=statusPg(c);
+     h+=`<div class="row"><div class="info"><div class="t">${esc(x.nome)}</div>${st==='pa'?'<div class="d">pago '+brl(pagoVal(c))+'</div>':''}</div>
+      <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(c.v)}"
+        oninput="valInput(this)" onchange="setV('c',${ai},${ci},this.value)">
+      <div class="pill ${st==='ok'?'ko':st==='pa'?'pa':''}" onclick="cyclePg('c',${ai},${ci})">${st==='ok'?'PAGO':st==='pa'?'PARCIAL':'PENDENTE'}</div></div>`;});
     h+=`</div>`;
    }
   }
   h+=`</div>`;});
- h+=`<p class="note">Toque no cabeçalho para abrir ou fechar o apartamento. Em <b>✎ editar</b> você renomeia o apartamento, troca os integrantes de cada quarto e ajusta as categorias de despesa. Para lançar um estorno, digite o valor e inclua um sinal de menos.</p>`;
+ h+=`<p class="note">Toque no cabeçalho para abrir ou fechar o apartamento. No campo de valor você pode escrever uma conta, ex.: <b>900+1000+300</b> — ao sair do campo ele soma. Toque na etiqueta para alternar <b>Pendente → Recebido → Parcial</b>; em Parcial o app pergunta quanto já entrou. Em <b>✎ editar</b> você renomeia o apartamento, troca integrantes e categorias.</p>`;
  return h;
 }
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 function toggleOpen(ai){OPEN[ai]=!OPEN[ai];if(!OPEN[ai])EDIT[ai]=false;render();}
 function toggleEdit(ai){EDIT[ai]=!EDIT[ai];render();}
-function tog(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
- o.meses[MES].pago=!o.meses[MES].pago;save();render();
- if(navigator.vibrate)navigator.vibrate(8);}
+function cyclePg(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];const c=o.meses[MES];
+ const st=statusPg(c);
+ if(st==='nao'){c.pago=true;c.pg=0;}
+ else if(st==='ok'){
+  const ent=prompt('Quanto foi '+(t==='q'?'recebido':'pago')+' até agora? (pode usar conta, ex.: 300+200)', c.v?String(c.v):'');
+  if(ent===null)return;
+  const val=parseVal(ent);
+  if(val<=0){c.pago=false;c.pg=0;}
+  else if(val>=c.v){c.pago=true;c.pg=0;}
+  else {c.pago=false;c.pg=val;}
+ } else {c.pago=false;c.pg=0;}
+ save();render(); if(navigator.vibrate)navigator.vibrate(8);}
 function setV(t,ai,i,v){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
- o.meses[MES].v=parseMoney(v);save();render();}
+ o.meses[MES].v=parseVal(v);save();render();}
 
 /* ---------- cadastro ---------- */
 function blank(){const o={};MESES.forEach(m=>o[m]={v:0,pago:false});return o;}
@@ -448,8 +481,8 @@ function vFluxo(){
   <td class="r">${brl(ativos.reduce((s,r)=>s+r.cusPg,0))}</td><td class="${acc>=0?'g':'r'}">${brl(acc)}</td><td></td></tr></table></div>`;
  const pend=[];
  DATA.forEach(ap=>MESES.slice(0,MESES.indexOf(MES)+1).forEach(m=>{
-  ap.quartos.forEach(q=>{if(q.meses[m].v>0&&!q.meses[m].pago)pend.push({t:'rec',ap:ap.nome,m,n:q.inquilino||q.quarto,v:q.meses[m].v});});
-  ap.custos.forEach(x=>{if(x.meses[m].v>0&&!x.meses[m].pago)pend.push({t:'cus',ap:ap.nome,m,n:x.nome,v:x.meses[m].v});});}));
+  ap.quartos.forEach(q=>{const c=q.meses[m];const falta=c.v-pagoVal(c);if(falta>0.005)pend.push({t:'rec',ap:ap.nome,m,n:q.inquilino||q.quarto,v:falta});});
+  ap.custos.forEach(x=>{const c=x.meses[m];const falta=c.v-pagoVal(c);if(falta>0.005)pend.push({t:'cus',ap:ap.nome,m,n:x.nome,v:falta});});}));
  h+=`<h2 class="sec">Pendências até ${NOMES[MES]}</h2><div class="card"><div class="rows">`;
  if(!pend.length)h+=`<div class="row"><div class="info"><div class="t m">Nada em aberto 🎉</div></div></div>`;
  pend.slice(0,80).forEach(p=>{h+=`<div class="row"><div class="info"><div class="t">${esc(p.n)}</div>
