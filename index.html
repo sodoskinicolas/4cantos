@@ -166,8 +166,9 @@ DATA = load() || JSON.parse(JSON.stringify(SEED));
 
 /* ================= NUVEM (Supabase) ================= */
 const CFGK='4cantos_cfg';
+const DEFAULT_CFG={url:'https://rktijrigwvkllofvwhqc.supabase.co', key:'sb_publishable_S9qvuMukZIAmHC04-B4zog_1GsKFN0s'};
 let SB=null, USER=null, tmr=null, ONLINE=false;
-function cfg(){try{return JSON.parse(localStorage.getItem(CFGK)||'null')}catch(e){return null}}
+function cfg(){try{const s=localStorage.getItem(CFGK); if(s) return JSON.parse(s);}catch(e){} return DEFAULT_CFG;}
 function setSync(cls,txt){const e=document.getElementById('syncLbl');
  if(e){e.className='sync '+cls;e.querySelector('span').textContent=txt;}}
 function ovl(html){const o=document.getElementById('ovl');
@@ -191,11 +192,27 @@ function telaLogin(erro){ovl(`<h3>4Cantos</h3><p>Entre com seu e-mail e senha pa
  <button class="gh" onclick="criar()">Criar conta com este e-mail</button>
  <button class="gh" onclick="if(confirm('Desconectar este painel da nuvem?')){localStorage.removeItem(CFGK);location.reload()}">Trocar de projeto</button>
  <p class="err" id="lErr">${erro||''}</p>`);}
-async function entrar(){const {error}=await SB.auth.signInWithPassword({email:lE.value.trim(),password:lS.value});
- if(error){lErr.textContent=error.message;return;} boot();}
-async function criar(){const {error}=await SB.auth.signUp({email:lE.value.trim(),password:lS.value});
- if(error){lErr.textContent=error.message;return;}
- lErr.textContent='Conta criada. Se o projeto exigir confirmação, confirme no e-mail e entre.';}
+function traduz(m){m=String(m||'');
+ if(/invalid login|invalid credentials/i.test(m))return 'E-mail ou senha incorretos. Se ainda não tem conta, toque em “Criar conta”.';
+ if(/already registered|already been registered|user already|already exists/i.test(m))return 'Este e-mail já tem conta. Digite a senha e toque em “Entrar”.';
+ if(/at least 6|password should|weak.?password/i.test(m))return 'A senha precisa ter ao menos 6 caracteres.';
+ if(/not confirmed|email not confirmed/i.test(m))return 'Confirme seu e-mail pelo link que enviamos e depois toque em “Entrar”.';
+ if(/valid email|invalid.?email|unable to validate email/i.test(m))return 'Digite um e-mail válido.';
+ if(/rate|too many|seconds/i.test(m))return 'Muitas tentativas. Aguarde alguns segundos e tente de novo.';
+ if(/anonymous/i.test(m))return 'Preencha o e-mail e a senha antes de continuar.';
+ return m;}
+function valida(){const e=(lE.value||'').trim(), s=lS.value||'';
+ if(!e||e.indexOf('@')<0){lErr.textContent='Digite um e-mail válido.';return null;}
+ if(s.length<6){lErr.textContent='A senha precisa ter ao menos 6 caracteres.';return null;}
+ return {email:e,password:s};}
+async function entrar(){const v=valida(); if(!v)return; lErr.textContent='Entrando…';
+ const {error}=await SB.auth.signInWithPassword(v);
+ if(error){lErr.textContent=traduz(error.message);return;} boot();}
+async function criar(){const v=valida(); if(!v)return; lErr.textContent='Criando conta…';
+ const {data,error}=await SB.auth.signUp(v);
+ if(error){lErr.textContent=traduz(error.message);return;}
+ if(data&&data.session){boot();return;}
+ lErr.textContent='Conta criada! Agora digite a senha e toque em “Entrar”.';}
 async function sair(){if(SB){await SB.auth.signOut();}location.reload();}
 
 async function lib(){
