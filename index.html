@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0d0f14">
 <script src="supabase.js"></script>
 <link rel="manifest" href="manifest.json">
@@ -19,7 +19,7 @@
 }
 html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);
  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
- font-size:15px;-webkit-font-smoothing:antialiased}
+ font-size:15px;-webkit-font-smoothing:antialiased;overflow-x:hidden;width:100%;max-width:100%}
 body{padding-bottom:96px}
 .wrap{max-width:760px;margin:0 auto;padding:0 12px}
 header{position:sticky;top:0;z-index:30;background:rgba(13,15,20,.92);backdrop-filter:blur(10px);
@@ -58,11 +58,11 @@ h2.sec{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--m
 .row .info{flex:1;min-width:0}
 .row .t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .d{font-size:11px;color:var(--mut);margin-top:1px}
-.val{width:112px;text-align:right;font-weight:700;font-size:14px;background:var(--card2);border:1px solid var(--line);
+.val{width:116px;text-align:right;font-weight:700;font-size:16px;background:var(--card2);border:1px solid var(--line);
  color:var(--tx);padding:8px 8px;border-radius:9px;font-family:inherit}
 .val::placeholder{color:#4b5568;font-weight:600}
 .val:focus{outline:0;border-color:var(--blu)}
-.valro{width:112px;text-align:right;font-weight:700;font-size:14px}
+.valro{width:116px;text-align:right;font-weight:700;font-size:15px}
 .pill{flex:0 0 auto;min-width:70px;text-align:center;padding:8px 8px;border-radius:10px;font-size:11px;
  font-weight:700;border:1px solid var(--line);background:var(--card2);color:var(--mut);letter-spacing:.2px}
 .pill.ok{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35);color:var(--grn)}
@@ -70,9 +70,9 @@ h2.sec{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--m
 .sub-h{padding:9px 14px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);
  font-weight:700;background:var(--card2);border-top:1px solid var(--line);display:flex;justify-content:space-between}
 .txt{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);color:var(--tx);font-family:inherit;
- font-size:14px;font-weight:600;padding:9px 10px;border-radius:9px}
+ font-size:16px;font-weight:600;padding:9px 10px;border-radius:9px}
 .txt:focus{outline:0;border-color:var(--blu)}
-.txt.sm{font-size:12px;font-weight:600;flex:0 0 96px}
+.txt.sm{font-size:16px;font-weight:600;flex:0 0 104px}
 .del{flex:0 0 auto;width:36px;height:36px;border-radius:9px;background:rgba(248,113,113,.12);
  border:1px solid rgba(248,113,113,.25);color:var(--red);font-size:17px;font-weight:700;line-height:1;font-family:inherit}
 .addbt{width:100%;padding:11px;background:var(--card2);border:1px dashed var(--line);color:var(--blu);
@@ -115,7 +115,7 @@ nav button.on{color:var(--tx)}
 .ovl h3{font-size:20px;margin:0 0 6px;letter-spacing:-.4px}
 .ovl p{font-size:13px;color:var(--mut);line-height:1.5;margin:0 0 18px}
 .ovl input{width:100%;padding:13px;margin-bottom:9px;border-radius:11px;background:var(--card);
- border:1px solid var(--line);color:var(--tx);font-size:15px;font-family:inherit}
+ border:1px solid var(--line);color:var(--tx);font-size:16px;font-family:inherit}
 .ovl input:focus{outline:0;border-color:var(--blu)}
 .ovl button{width:100%;padding:14px;border-radius:11px;background:var(--blu);border:0;color:#0d0f14;
  font-size:15px;font-weight:700;font-family:inherit;margin-top:5px}
