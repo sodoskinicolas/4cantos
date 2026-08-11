@@ -408,6 +408,10 @@ function cyclePg(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
  save();render(); if(navigator.vibrate)navigator.vibrate(8);}
 function setV(t,ai,i,v){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
  o.meses[MES].v=parseVal(v);save();render();}
+function baixaPend(t,ai,i,m,el){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
+ o.meses[m].pago=true;o.meses[m].pg=0;save();
+ if(el){el.classList.add('ok');el.textContent=t==='q'?'✓ RECEBIDO':'✓ PAGO';el.onclick=null;el.style.opacity='.75';}
+ if(navigator.vibrate)navigator.vibrate(8);}
 
 /* ---------- cadastro ---------- */
 function blank(){const o={};MESES.forEach(m=>o[m]={v:0,pago:false});return o;}
@@ -480,14 +484,14 @@ function vFluxo(){
  h+=`<tr class="tot"><td>Total</td><td class="g">${brl(ativos.reduce((s,r)=>s+r.recPg,0))}</td>
   <td class="r">${brl(ativos.reduce((s,r)=>s+r.cusPg,0))}</td><td class="${acc>=0?'g':'r'}">${brl(acc)}</td><td></td></tr></table></div>`;
  const pend=[];
- DATA.forEach(ap=>MESES.slice(0,MESES.indexOf(MES)+1).forEach(m=>{
-  ap.quartos.forEach(q=>{const c=q.meses[m];const falta=c.v-pagoVal(c);if(falta>0.005)pend.push({t:'rec',ap:ap.nome,m,n:q.inquilino||q.quarto,v:falta});});
-  ap.custos.forEach(x=>{const c=x.meses[m];const falta=c.v-pagoVal(c);if(falta>0.005)pend.push({t:'cus',ap:ap.nome,m,n:x.nome,v:falta});});}));
+ DATA.forEach((ap,ai)=>MESES.slice(0,MESES.indexOf(MES)+1).forEach(m=>{
+  ap.quartos.forEach((q,qi)=>{const c=q.meses[m];const falta=c.v-pagoVal(c);if(falta>0.005)pend.push({t:'q',ai,i:qi,rec:true,ap:ap.nome,m,n:q.inquilino||q.quarto,v:falta});});
+  ap.custos.forEach((x,ci)=>{const c=x.meses[m];const falta=c.v-pagoVal(c);if(falta>0.005)pend.push({t:'c',ai,i:ci,rec:false,ap:ap.nome,m,n:x.nome,v:falta});});}));
  h+=`<h2 class="sec">Pendências até ${NOMES[MES]}</h2><div class="card"><div class="rows">`;
  if(!pend.length)h+=`<div class="row"><div class="info"><div class="t m">Nada em aberto 🎉</div></div></div>`;
  pend.slice(0,80).forEach(p=>{h+=`<div class="row"><div class="info"><div class="t">${esc(p.n)}</div>
-  <div class="d">${esc(p.ap)} · ${p.m}</div></div><div class="valro ${p.t==='rec'?'a':'r'}">${brl(p.v)}</div>
-  <div class="pill">${p.t==='rec'?'A RECEBER':'A PAGAR'}</div></div>`;});
+  <div class="d">${esc(p.ap)} · ${p.m}</div></div><div class="valro ${p.rec?'a':'r'}">${brl(p.v)}</div>
+  <div class="pill" onclick="baixaPend('${p.t}',${p.ai},${p.i},'${p.m}',this)">${p.rec?'A RECEBER':'A PAGAR'}</div></div>`;});
  h+=`</div></div>`;
  return h;
 }
