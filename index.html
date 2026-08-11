@@ -398,7 +398,7 @@ function cyclePg(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
  const st=statusPg(c);
  if(st==='nao'){c.pago=true;c.pg=0;}
  else if(st==='ok'){
-  const ent=prompt('Quanto foi '+(t==='q'?'recebido':'pago')+' até agora? (pode usar conta, ex.: 300+200)', c.v?String(c.v):'');
+  const ent=prompt('PARCIAL — quanto já '+(t==='q'?'entrou':'foi pago')+' deste total de '+brl(c.v)+'?\nDigite só a parte paga (ex.: 300+200). Vazio = volta para pendente.', '');
   if(ent===null)return;
   const val=parseVal(ent);
   if(val<=0){c.pago=false;c.pg=0;}
