@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: 4cantos-painel
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .
+    headers:
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache, max-age=0

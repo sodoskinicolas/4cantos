@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f14">
+<script src="supabase.js"></script>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="4Cantos">
+<title>4Cantos · Painel 2026</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+ --bg:#0d0f14; --card:#161a22; --card2:#1d2230; --line:#252b38;
+ --tx:#e8ecf3; --mut:#8b95a8; --grn:#34d399; --red:#f87171; --amb:#fbbf24; --blu:#60a5fa;
+}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--tx);
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+ font-size:15px;-webkit-font-smoothing:antialiased}
+body{padding-bottom:96px}
+.wrap{max-width:760px;margin:0 auto;padding:0 12px}
+header{position:sticky;top:0;z-index:30;background:rgba(13,15,20,.92);backdrop-filter:blur(10px);
+ border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
+.hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 6px;max-width:760px;margin:0 auto}
+.hd h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.3px}
+.hd .yr{font-size:12px;color:var(--mut)}
+.months{display:flex;gap:6px;overflow-x:auto;padding:4px 12px 10px;max-width:760px;margin:0 auto;scrollbar-width:none}
+.months::-webkit-scrollbar{display:none}
+.mchip{flex:0 0 auto;padding:7px 13px;border-radius:999px;background:var(--card);border:1px solid var(--line);
+ color:var(--mut);font-size:13px;font-weight:600}
+.mchip.on{background:var(--tx);color:#0d0f14;border-color:var(--tx)}
+.mchip.fut{opacity:.45}
+h2.sec{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--mut);margin:20px 2px 8px;font-weight:700}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.kpi .l{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.kpi .v{font-size:19px;font-weight:700;margin-top:3px;letter-spacing:-.5px}
+.kpi .s{font-size:11px;color:var(--mut);margin-top:2px}
+.kpi.big{grid-column:1/-1}.kpi.big .v{font-size:28px}
+.g{color:var(--grn)}.r{color:var(--red)}.a{color:var(--amb)}.b{color:var(--blu)}.m{color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.aphd{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;gap:10px}
+.aphd .n{font-weight:700;font-size:15px;display:flex;align-items:center;gap:7px}
+.aphd .sub{font-size:11px;color:var(--mut);margin-top:2px}
+.aphd .rt{text-align:right}
+.aphd .rt .v{font-weight:700;font-size:16px}
+.chev{width:12px;height:12px;border-right:2px solid var(--mut);border-bottom:2px solid var(--mut);
+ transform:rotate(45deg) translate(-2px,-2px);transition:transform .2s;flex:0 0 auto}
+.chev.up{transform:rotate(-135deg) translate(-3px,-3px)}
+.bar{height:5px;background:var(--card2);border-radius:9px;overflow:hidden;margin:0 14px 12px}
+.bar i{display:block;height:100%;background:var(--grn);border-radius:9px;transition:width .3s}
+.rows{border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .info{flex:1;min-width:0}
+.row .t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .d{font-size:11px;color:var(--mut);margin-top:1px}
+.val{width:112px;text-align:right;font-weight:700;font-size:14px;background:var(--card2);border:1px solid var(--line);
+ color:var(--tx);padding:8px 8px;border-radius:9px;font-family:inherit}
+.val::placeholder{color:#4b5568;font-weight:600}
+.val:focus{outline:0;border-color:var(--blu)}
+.valro{width:112px;text-align:right;font-weight:700;font-size:14px}
+.pill{flex:0 0 auto;min-width:70px;text-align:center;padding:8px 8px;border-radius:10px;font-size:11px;
+ font-weight:700;border:1px solid var(--line);background:var(--card2);color:var(--mut);letter-spacing:.2px}
+.pill.ok{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35);color:var(--grn)}
+.pill.ko{background:rgba(248,113,113,.13);border-color:rgba(248,113,113,.3);color:var(--red)}
+.sub-h{padding:9px 14px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);
+ font-weight:700;background:var(--card2);border-top:1px solid var(--line);display:flex;justify-content:space-between}
+.txt{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);color:var(--tx);font-family:inherit;
+ font-size:14px;font-weight:600;padding:9px 10px;border-radius:9px}
+.txt:focus{outline:0;border-color:var(--blu)}
+.txt.sm{font-size:12px;font-weight:600;flex:0 0 96px}
+.del{flex:0 0 auto;width:36px;height:36px;border-radius:9px;background:rgba(248,113,113,.12);
+ border:1px solid rgba(248,113,113,.25);color:var(--red);font-size:17px;font-weight:700;line-height:1;font-family:inherit}
+.addbt{width:100%;padding:11px;background:var(--card2);border:1px dashed var(--line);color:var(--blu);
+ font-size:13px;font-weight:700;font-family:inherit;border-radius:0}
+.iconbt{flex:0 0 auto;padding:7px 10px;border-radius:9px;background:var(--card2);border:1px solid var(--line);
+ color:var(--mut);font-size:12px;font-weight:700;font-family:inherit}
+.iconbt.on{color:var(--blu);border-color:rgba(96,165,250,.4);background:rgba(96,165,250,.12)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);font-weight:700}
+tr.tot td{font-weight:800;border-top:1px solid var(--line);border-bottom:0;font-size:15px}
+tr.sb td{color:var(--mut)}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:rgba(13,15,20,.96);backdrop-filter:blur(12px);
+ border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:0;border:0;color:var(--mut);padding:10px 2px 12px;font-family:inherit;
+ font-size:10.5px;font-weight:700;letter-spacing:.3px;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--tx)}
+.seg{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}.seg::-webkit-scrollbar{display:none}
+.seg button{flex:0 0 auto;padding:8px 14px;border-radius:10px;background:var(--card);border:1px solid var(--line);
+ color:var(--mut);font-size:13px;font-weight:600;font-family:inherit}
+.seg button.on{background:var(--tx);color:#0d0f14;border-color:var(--tx)}
+.chart{display:flex;align-items:flex-end;gap:5px;height:120px;padding:10px 12px 0}
+.chart div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%}
+.chart div b{display:block;background:var(--grn);border-radius:3px 3px 0 0;min-height:2px}
+.chart div u{display:block;background:#374151;border-radius:0 0 3px 3px;min-height:2px}
+.chartx{display:flex;gap:5px;padding:5px 12px 12px}
+.chartx span{flex:1;text-align:center;font-size:9px;color:var(--mut)}
+.tools{display:flex;gap:8px;margin:14px 0 4px}
+.tools button{flex:1;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--line);
+ color:var(--tx);font-size:13px;font-weight:600;font-family:inherit}
+.bigadd{width:100%;padding:14px;border-radius:12px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.35);
+ color:var(--blu);font-size:14px;font-weight:700;font-family:inherit;margin-bottom:12px}
+.note{font-size:11.5px;color:var(--mut);line-height:1.5;margin:10px 2px 0}
+.hidden{display:none}
+.ovl.hidden{display:none}
+.ovl{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:22px}
+.ovl .box{width:100%;max-width:400px}
+.ovl h3{font-size:20px;margin:0 0 6px;letter-spacing:-.4px}
+.ovl p{font-size:13px;color:var(--mut);line-height:1.5;margin:0 0 18px}
+.ovl input{width:100%;padding:13px;margin-bottom:9px;border-radius:11px;background:var(--card);
+ border:1px solid var(--line);color:var(--tx);font-size:15px;font-family:inherit}
+.ovl input:focus{outline:0;border-color:var(--blu)}
+.ovl button{width:100%;padding:14px;border-radius:11px;background:var(--blu);border:0;color:#0d0f14;
+ font-size:15px;font-weight:700;font-family:inherit;margin-top:5px}
+.ovl button.gh{background:transparent;color:var(--mut);border:1px solid var(--line);font-weight:600;font-size:13px}
+.ovl .err{color:var(--red);font-size:12.5px;margin:10px 0 0;min-height:16px}
+.sync{font-size:10px;color:var(--mut);letter-spacing:.4px;display:flex;align-items:center;gap:5px;justify-content:flex-end}
+.sync i{width:6px;height:6px;border-radius:50%;background:var(--mut);display:block}
+.sync.ok i{background:var(--grn)}.sync.busy i{background:var(--amb)}.sync.off i{background:var(--red)}
+</style>
+</head>
+<body>
+<header>
+ <div class="hd"><div><h1>4Cantos</h1><div class="yr" id="ctxLbl">Painel de gestão · 2026</div></div>
+  <div class="rt" style="text-align:right"><div style="font-size:10px;color:var(--mut);letter-spacing:.6px">SALDO DO MÊS</div>
+  <div id="hdSaldo" style="font-weight:800;font-size:17px">—</div>
+  <div class="sync" id="syncLbl"><i></i><span>local</span></div></div></div>
+ <div class="months" id="months"></div>
+</header>
+
+<div class="ovl hidden" id="ovl"><div class="box" id="ovlBox"></div></div>
+
+<div class="wrap">
+ <div id="v-resumo"></div>
+ <div id="v-lanc" class="hidden"></div>
+ <div id="v-dre" class="hidden"></div>
+ <div id="v-fluxo" class="hidden"></div>
+</div>
+
+<nav>
+ <button data-v="resumo" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Resumo</button>
+ <button data-v="lanc"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Lançar</button>
+ <button data-v="dre"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>DRE</button>
+ <button data-v="fluxo"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Fluxo</button>
+</nav>
+
+
+<script>
+const SEED = [{"id": "142", "nome": "142 - Marieta", "quartos": [{"quarto": "Quarto 01", "inquilino": "DYONY", "meses": {"JAN": {"v": 300.0, "pago": true}, "FEV": {"v": 900.0, "pago": true}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 02", "inquilino": "EVERTON", "meses": {"JAN": {"v": 780.0, "pago": true}, "FEV": {"v": 780.0, "pago": true}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 03", "inquilino": "", "meses": {"JAN": {"v": 400.0, "pago": true}, "FEV": {"v": 200.0, "pago": true}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 04", "inquilino": "", "meses": {"JAN": {"v": 0, "pago": true}, "FEV": {"v": 0, "pago": false}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 05", "inquilino": "NAYARA", "meses": {"JAN": {"v": 240.0, "pago": true}, "FEV": {"v": 0, "pago": false}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}], "custos": [{"nome": "Aluguel", "meses": {"JAN": {"v": 845.95, "pago": true}, "FEV": {"v": 1086.0, "pago": true}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Condominio", "meses": {"JAN": {"v": 420.0, "pago": true}, "FEV": {"v": 0, "pago": false}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Luz", "meses": {"JAN": {"v": 309.76, "pago": true}, "FEV": {"v": 265.26, "pago": true}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Internet", "meses": {"JAN": {"v": 100.0, "pago": true}, "FEV": {"v": 100.0, "pago": true}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Reformas", "meses": {"JAN": {"v": 0, "pago": false}, "FEV": {"v": 0, "pago": false}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}]}, {"id": "64", "nome": "64 - Nastas", "quartos": [{"quarto": "Quarto 01", "inquilino": "LUIZ BIRINO", "meses": {"JAN": {"v": 800.0, "pago": true}, "FEV": {"v": 800.0, "pago": true}, "MAR": {"v": 800.0, "pago": true}, "ABR": {"v": 800.0, "pago": true}, "MAI": {"v": 1463.0, "pago": true}, "JUN": {"v": 850.0, "pago": true}, "JUL": {"v": 850.0, "pago": true}, "AGO": {"v": 850.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 02", "inquilino": "JOHN", "meses": {"JAN": {"v": 850.0, "pago": true}, "FEV": {"v": 850.0, "pago": true}, "MAR": {"v": 850.0, "pago": true}, "ABR": {"v": 850.0, "pago": true}, "MAI": {"v": 850.0, "pago": true}, "JUN": {"v": 850.0, "pago": true}, "JUL": {"v": 850.0, "pago": true}, "AGO": {"v": 850.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 03", "inquilino": "MATHEUS", "meses": {"JAN": {"v": 750.0, "pago": true}, "FEV": {"v": 750.0, "pago": true}, "MAR": {"v": 750.0, "pago": true}, "ABR": {"v": 800.0, "pago": true}, "MAI": {"v": 800.0, "pago": true}, "JUN": {"v": 600.0, "pago": true}, "JUL": {"v": 1000.0, "pago": true}, "AGO": {"v": 700.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 04", "inquilino": "CAIMMY", "meses": {"JAN": {"v": 1300.0, "pago": true}, "FEV": {"v": 650.0, "pago": true}, "MAR": {"v": 300.0, "pago": true}, "ABR": {"v": 1650.0, "pago": true}, "MAI": {"v": 650.0, "pago": true}, "JUN": {"v": 650.0, "pago": true}, "JUL": {"v": 650.0, "pago": true}, "AGO": {"v": 650.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 05", "inquilino": "PAULINHO", "meses": {"JAN": {"v": 800.0, "pago": true}, "FEV": {"v": 2050.0, "pago": true}, "MAR": {"v": 1200.0, "pago": true}, "ABR": {"v": 1200.0, "pago": true}, "MAI": {"v": 1200.0, "pago": true}, "JUN": {"v": 1550.0, "pago": false}, "JUL": {"v": 1550.0, "pago": false}, "AGO": {"v": 2080.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}], "custos": [{"nome": "Aluguel", "meses": {"JAN": {"v": 1600.0, "pago": true}, "FEV": {"v": 1458.0, "pago": true}, "MAR": {"v": 1651.0, "pago": true}, "ABR": {"v": 1651.0, "pago": true}, "MAI": {"v": 1652.0, "pago": true}, "JUN": {"v": 1652.0, "pago": true}, "JUL": {"v": 1652.0, "pago": true}, "AGO": {"v": 1652.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Condominio", "meses": {"JAN": {"v": 992.94, "pago": true}, "FEV": {"v": 950.0, "pago": true}, "MAR": {"v": 920.0, "pago": true}, "ABR": {"v": 920.0, "pago": true}, "MAI": {"v": 920.0, "pago": true}, "JUN": {"v": 952.0, "pago": true}, "JUL": {"v": 952.0, "pago": false}, "AGO": {"v": 952.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Luz", "meses": {"JAN": {"v": 310.28, "pago": true}, "FEV": {"v": 301.25, "pago": true}, "MAR": {"v": 302.25, "pago": true}, "ABR": {"v": 302.25, "pago": true}, "MAI": {"v": 346.0, "pago": true}, "JUN": {"v": 281.0, "pago": true}, "JUL": {"v": 303.25, "pago": true}, "AGO": {"v": 303.25, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Internet", "meses": {"JAN": {"v": 100.0, "pago": true}, "FEV": {"v": 100.0, "pago": true}, "MAR": {"v": 101.0, "pago": true}, "ABR": {"v": 101.0, "pago": true}, "MAI": {"v": 102.0, "pago": true}, "JUN": {"v": 102.0, "pago": true}, "JUL": {"v": 102.0, "pago": true}, "AGO": {"v": 102.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Reformas", "meses": {"JAN": {"v": 0, "pago": false}, "FEV": {"v": 0, "pago": false}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": -280.0, "pago": true}, "JUN": {"v": -280.0, "pago": true}, "JUL": {"v": -280.0, "pago": true}, "AGO": {"v": -280.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}]}, {"id": "63", "nome": "63 - Marieta", "quartos": [{"quarto": "Quarto 01", "inquilino": "ANDREY CORREIA", "meses": {"JAN": {"v": 1110.0, "pago": true}, "FEV": {"v": 850.0, "pago": true}, "MAR": {"v": 850.0, "pago": true}, "ABR": {"v": 2832.5, "pago": true}, "MAI": {"v": 850.0, "pago": true}, "JUN": {"v": 850.0, "pago": true}, "JUL": {"v": 850.0, "pago": true}, "AGO": {"v": 850.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 02", "inquilino": "ZÉ", "meses": {"JAN": {"v": 750.0, "pago": true}, "FEV": {"v": 1700.0, "pago": true}, "MAR": {"v": 850.0, "pago": true}, "ABR": {"v": 850.0, "pago": true}, "MAI": {"v": 850.0, "pago": true}, "JUN": {"v": 850.0, "pago": true}, "JUL": {"v": 850.0, "pago": true}, "AGO": {"v": 850.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 03", "inquilino": "ANDREY", "meses": {"JAN": {"v": 750.0, "pago": true}, "FEV": {"v": 750.0, "pago": true}, "MAR": {"v": 750.0, "pago": true}, "ABR": {"v": 750.0, "pago": true}, "MAI": {"v": 750.0, "pago": true}, "JUN": {"v": 750.0, "pago": true}, "JUL": {"v": 750.0, "pago": true}, "AGO": {"v": 750.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 04", "inquilino": "VITOR", "meses": {"JAN": {"v": 750.0, "pago": true}, "FEV": {"v": 1500.0, "pago": true}, "MAR": {"v": 1000.0, "pago": true}, "ABR": {"v": 750.0, "pago": true}, "MAI": {"v": 1000.0, "pago": true}, "JUN": {"v": 750.0, "pago": true}, "JUL": {"v": 750.0, "pago": true}, "AGO": {"v": 750.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 05", "inquilino": "NOVO", "meses": {"JAN": {"v": 0, "pago": false}, "FEV": {"v": 0, "pago": false}, "MAR": {"v": 1600.0, "pago": true}, "ABR": {"v": 350.0, "pago": true}, "MAI": {"v": 650.0, "pago": true}, "JUN": {"v": 100.0, "pago": true}, "JUL": {"v": 650.0, "pago": true}, "AGO": {"v": 650.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}], "custos": [{"nome": "Aluguel", "meses": {"JAN": {"v": 1193.0, "pago": true}, "FEV": {"v": 1193.0, "pago": true}, "MAR": {"v": 1344.0, "pago": true}, "ABR": {"v": 1344.0, "pago": true}, "MAI": {"v": 1345.0, "pago": true}, "JUN": {"v": 1500.0, "pago": true}, "JUL": {"v": 1345.0, "pago": true}, "AGO": {"v": 1345.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Condominio", "meses": {"JAN": {"v": 500.0, "pago": true}, "FEV": {"v": 558.0, "pago": true}, "MAR": {"v": 750.0, "pago": true}, "ABR": {"v": 518.0, "pago": true}, "MAI": {"v": 450.0, "pago": false}, "JUN": {"v": 401.0, "pago": false}, "JUL": {"v": 401.0, "pago": false}, "AGO": {"v": 401.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Luz", "meses": {"JAN": {"v": 288.46, "pago": true}, "FEV": {"v": 254.19, "pago": true}, "MAR": {"v": 255.19, "pago": true}, "ABR": {"v": 255.19, "pago": true}, "MAI": {"v": 198.0, "pago": true}, "JUN": {"v": 180.0, "pago": true}, "JUL": {"v": 256.19, "pago": false}, "AGO": {"v": 256.19, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Internet", "meses": {"JAN": {"v": 100.0, "pago": true}, "FEV": {"v": 100.0, "pago": true}, "MAR": {"v": 101.0, "pago": true}, "ABR": {"v": 101.0, "pago": true}, "MAI": {"v": 102.0, "pago": true}, "JUN": {"v": 102.0, "pago": true}, "JUL": {"v": 102.0, "pago": false}, "AGO": {"v": 102.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Reformas", "meses": {"JAN": {"v": 0, "pago": false}, "FEV": {"v": 0, "pago": false}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 150.0, "pago": false}, "JUN": {"v": 150.0, "pago": false}, "JUL": {"v": 150.0, "pago": false}, "AGO": {"v": 150.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}]}, {"id": "92", "nome": "92", "quartos": [{"quarto": "Quarto 01", "inquilino": "CARLOS", "meses": {"JAN": {"v": 1700.0, "pago": true}, "FEV": {"v": 1100.0, "pago": true}, "MAR": {"v": 1100.0, "pago": true}, "ABR": {"v": 1100.0, "pago": true}, "MAI": {"v": 850.0, "pago": true}, "JUN": {"v": 890.0, "pago": true}, "JUL": {"v": 890.0, "pago": true}, "AGO": {"v": 890.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 02", "inquilino": "LUCAS P.", "meses": {"JAN": {"v": 1275.0, "pago": true}, "FEV": {"v": 850.0, "pago": true}, "MAR": {"v": 850.0, "pago": true}, "ABR": {"v": 850.0, "pago": true}, "MAI": {"v": 850.0, "pago": true}, "JUN": {"v": 935.0, "pago": true}, "JUL": {"v": 850.0, "pago": true}, "AGO": {"v": 850.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 03", "inquilino": "FELIPE", "meses": {"JAN": {"v": 850.0, "pago": true}, "FEV": {"v": 1700.0, "pago": true}, "MAR": {"v": 0, "pago": true}, "ABR": {"v": 850.0, "pago": true}, "MAI": {"v": 850.0, "pago": true}, "JUN": {"v": 850.0, "pago": true}, "JUL": {"v": 850.0, "pago": true}, "AGO": {"v": 850.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 04", "inquilino": "FABIO", "meses": {"JAN": {"v": 850.0, "pago": true}, "FEV": {"v": 850.0, "pago": true}, "MAR": {"v": 850.0, "pago": true}, "ABR": {"v": 850.0, "pago": true}, "MAI": {"v": 850.0, "pago": true}, "JUN": {"v": 850.0, "pago": true}, "JUL": {"v": 850.0, "pago": true}, "AGO": {"v": 850.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"quarto": "Quarto 05", "inquilino": "JOÃO VICTOR", "meses": {"JAN": {"v": 650.0, "pago": true}, "FEV": {"v": 650.0, "pago": true}, "MAR": {"v": 650.0, "pago": true}, "ABR": {"v": 650.0, "pago": true}, "MAI": {"v": 650.0, "pago": true}, "JUN": {"v": 650.0, "pago": true}, "JUL": {"v": 650.0, "pago": true}, "AGO": {"v": 650.0, "pago": true}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}], "custos": [{"nome": "Aluguel", "meses": {"JAN": {"v": 1600.0, "pago": true}, "FEV": {"v": 1600.0, "pago": true}, "MAR": {"v": 1601.0, "pago": true}, "ABR": {"v": 1600.0, "pago": true}, "MAI": {"v": 1602.0, "pago": true}, "JUN": {"v": 1602.0, "pago": true}, "JUL": {"v": 1602.0, "pago": true}, "AGO": {"v": 1602.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Condominio", "meses": {"JAN": {"v": 900.0, "pago": true}, "FEV": {"v": 900.0, "pago": true}, "MAR": {"v": 901.0, "pago": true}, "ABR": {"v": 900.0, "pago": true}, "MAI": {"v": 902.0, "pago": true}, "JUN": {"v": 902.0, "pago": true}, "JUL": {"v": 902.0, "pago": true}, "AGO": {"v": 902.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Luz", "meses": {"JAN": {"v": 300.0, "pago": true}, "FEV": {"v": 267.0, "pago": true}, "MAR": {"v": 200.0, "pago": true}, "ABR": {"v": 142.0, "pago": true}, "MAI": {"v": 201.0, "pago": true}, "JUN": {"v": 201.0, "pago": true}, "JUL": {"v": 201.0, "pago": false}, "AGO": {"v": 201.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Internet", "meses": {"JAN": {"v": 110.0, "pago": true}, "FEV": {"v": 110.0, "pago": true}, "MAR": {"v": 110.0, "pago": true}, "ABR": {"v": 110.0, "pago": true}, "MAI": {"v": 102.0, "pago": true}, "JUN": {"v": 102.0, "pago": true}, "JUL": {"v": 102.0, "pago": false}, "AGO": {"v": 102.0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}, {"nome": "Reformas", "meses": {"JAN": {"v": 0, "pago": false}, "FEV": {"v": 0, "pago": false}, "MAR": {"v": 0, "pago": false}, "ABR": {"v": 0, "pago": false}, "MAI": {"v": 0, "pago": false}, "JUN": {"v": 0, "pago": false}, "JUL": {"v": 0, "pago": false}, "AGO": {"v": 0, "pago": false}, "SET": {"v": 0, "pago": false}, "OUT": {"v": 0, "pago": false}, "NOV": {"v": 0, "pago": false}, "DEZ": {"v": 0, "pago": false}}}]}];
+const MESES=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+const NOMES={JAN:'Janeiro',FEV:'Fevereiro',MAR:'Março',ABR:'Abril',MAI:'Maio',JUN:'Junho',JUL:'Julho',AGO:'Agosto',SET:'Setembro',OUT:'Outubro',NOV:'Novembro',DEZ:'Dezembro'};
+const KEY='4cantos2026';
+let DATA=null, MES='AGO', VIEW='resumo', DRESEL='TODOS';
+let OPEN={}, EDIT={};
+
+function load(){ try{const s=localStorage.getItem(KEY); if(s) return JSON.parse(s);}catch(e){} return null; }
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(DATA));}catch(e){} push(); }
+DATA = load() || JSON.parse(JSON.stringify(SEED));
+
+/* ================= NUVEM (Supabase) ================= */
+const CFGK='4cantos_cfg';
+let SB=null, USER=null, tmr=null, ONLINE=false;
+function cfg(){try{return JSON.parse(localStorage.getItem(CFGK)||'null')}catch(e){return null}}
+function setSync(cls,txt){const e=document.getElementById('syncLbl');
+ if(e){e.className='sync '+cls;e.querySelector('span').textContent=txt;}}
+function ovl(html){const o=document.getElementById('ovl');
+ if(html===null){o.classList.add('hidden');return;} o.classList.remove('hidden');
+ document.getElementById('ovlBox').innerHTML=html;}
+
+function telaConfig(){ovl(`<h3>Conectar à nuvem</h3>
+ <p>Cole a chave <b>anon public</b> do seu projeto Supabase (Settings → API Keys → Legacy) e toque em Conectar. A URL já está preenchida.</p>
+ <input id="cU" value="https://rktijrigwvkllofvwhqc.supabase.co" autocapitalize="off" autocorrect="off">
+ <input id="cK" placeholder="cole aqui a chave anon public" autocapitalize="off" autocorrect="off">
+ <button onclick="salvaCfg()">Conectar</button>
+ <button class="gh" onclick="ovl(null);setSync('','só neste aparelho')">Usar offline por enquanto</button>
+ <p class="err" id="cE"></p>`);}
+function salvaCfg(){const u=cU.value.trim().replace(/[/]+$/,''),k=cK.value.trim();
+ if(!u||!k){cE.textContent='Preencha os dois campos.';return;}
+ localStorage.setItem(CFGK,JSON.stringify({url:u,key:k}));boot();}
+
+function telaLogin(erro){ovl(`<h3>4Cantos</h3><p>Entre com seu e-mail e senha para carregar os lançamentos.</p>
+ <input id="lE" type="email" placeholder="e-mail" autocapitalize="off"><input id="lS" type="password" placeholder="senha">
+ <button onclick="entrar()">Entrar</button>
+ <button class="gh" onclick="criar()">Criar conta com este e-mail</button>
+ <button class="gh" onclick="if(confirm('Desconectar este painel da nuvem?')){localStorage.removeItem(CFGK);location.reload()}">Trocar de projeto</button>
+ <p class="err" id="lErr">${erro||''}</p>`);}
+async function entrar(){const {error}=await SB.auth.signInWithPassword({email:lE.value.trim(),password:lS.value});
+ if(error){lErr.textContent=error.message;return;} boot();}
+async function criar(){const {error}=await SB.auth.signUp({email:lE.value.trim(),password:lS.value});
+ if(error){lErr.textContent=error.message;return;}
+ lErr.textContent='Conta criada. Se o projeto exigir confirmação, confirme no e-mail e entre.';}
+async function sair(){if(SB){await SB.auth.signOut();}location.reload();}
+
+async function lib(){
+ if(window.supabase&&window.supabase.createClient)return true;
+ for(const u of ['https://esm.sh/@supabase/supabase-js@2',
+                 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm']){
+  try{window.supabase=await import(u);if(window.supabase.createClient)return true;}catch(e){}
+ }
+ return false;
+}
+async function boot(){
+ const c=cfg();
+ if(!c){setSync('','só neste aparelho');telaConfig();render();return;}
+ setSync('busy','conectando…');
+ if(!await lib()){setSync('off','sem conexão');render();return;}
+ SB=window.supabase.createClient(c.url,c.key);
+ const {data:{session}}=await SB.auth.getSession();
+ if(!session){render();telaLogin();return;}
+ USER=session.user;ovl(null);setSync('busy','carregando…');
+ const {data,error}=await SB.from('painel').select('dados').eq('user_id',USER.id).maybeSingle();
+ if(error){setSync('off','erro: '+error.message);render();return;}
+ if(data&&data.dados){DATA=data.dados;try{localStorage.setItem(KEY,JSON.stringify(DATA))}catch(e){}}
+ else{await SB.from('painel').upsert({user_id:USER.id,dados:DATA,atualizado_em:new Date().toISOString()});}
+ ONLINE=true;setSync('ok','sincronizado');render();
+ SB.channel('painel-'+USER.id).on('postgres_changes',
+  {event:'*',schema:'public',table:'painel',filter:'user_id=eq.'+USER.id},
+  p=>{if(p.new&&p.new.dados&&JSON.stringify(p.new.dados)!==JSON.stringify(DATA)){
+   DATA=p.new.dados;try{localStorage.setItem(KEY,JSON.stringify(DATA))}catch(e){}render();
+   setSync('ok','atualizado de outro aparelho');}}).subscribe();
+}
+function push(){
+ if(!ONLINE||!SB||!USER)return;
+ setSync('busy','salvando…');clearTimeout(tmr);
+ tmr=setTimeout(async()=>{
+  const {error}=await SB.from('painel').upsert({user_id:USER.id,dados:DATA,atualizado_em:new Date().toISOString()});
+  setSync(error?'off':'ok',error?'falha ao salvar':'sincronizado');
+ },700);
+}
+
+/* ---------- dinheiro ---------- */
+const brl=n=>(n<0?'-':'')+'R$ '+Math.abs(n).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+const brl2=n=>(n<0?'-':'')+'R$ '+Math.abs(Math.round(n*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const inMoney=n=>n?brl2(n):'';
+function maskEl(el){
+ const neg=el.value.indexOf('-')>=0;
+ const d=el.value.replace(/\D/g,'');
+ if(!d){el.value=neg?'-':'';return;}
+ el.value=(neg?'-':'')+'R$ '+(parseInt(d,10)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function parseMoney(s){
+ const neg=String(s).indexOf('-')>=0;
+ const d=String(s).replace(/\D/g,'');
+ if(!d)return 0;
+ return (neg?-1:1)*parseInt(d,10)/100;
+}
+function negToggle(el){ // permite lançar valor negativo (crédito/estorno)
+ el.value = el.value.indexOf('-')>=0 ? el.value.replace('-','') : '-'+el.value;
+}
+
+/* ---------- cálculos ---------- */
+function apStats(ap,m){
+ let rec=0,recPg=0,cus=0,cusPg=0,ocup=0;
+ ap.quartos.forEach(q=>{const c=q.meses[m];rec+=c.v;if(c.pago)recPg+=c.v;if(c.v>0)ocup++;});
+ ap.custos.forEach(x=>{const c=x.meses[m];cus+=c.v;if(c.pago)cusPg+=c.v;});
+ return{rec,recPg,recAb:rec-recPg,cus,cusPg,cusAb:cus-cusPg,lucro:rec-cus,caixa:recPg-cusPg,ocup,
+  marg:rec?(rec-cus)/rec:0};
+}
+function totStats(m){const t={rec:0,recPg:0,recAb:0,cus:0,cusPg:0,cusAb:0,lucro:0,caixa:0,ocup:0};
+ DATA.forEach(ap=>{const s=apStats(ap,m);for(const k in t)t[k]+=s[k];});
+ t.marg=t.rec?t.lucro/t.rec:0;return t;}
+const hasData=m=>DATA.some(ap=>{const s=apStats(ap,m);return s.rec>0||s.cus>0;});
+const totQuartos=()=>DATA.reduce((s,a)=>s+a.quartos.length,0);
+
+/* ---------- RESUMO ---------- */
+function vResumo(){
+ const t=totStats(MES);
+ let h=`<h2 class="sec">Consolidado · ${NOMES[MES]}</h2>
+ <div class="kpis">
+  <div class="kpi big"><div class="l">Lucro líquido do mês</div>
+   <div class="v ${t.lucro>=0?'g':'r'}">${brl(t.lucro)}</div>
+   <div class="s">margem ${(t.marg*100).toFixed(1)}% · caixa realizado ${brl(t.caixa)}</div></div>
+  <div class="kpi"><div class="l">Recebido</div><div class="v g">${brl(t.recPg)}</div>
+   <div class="s">de ${brl(t.rec)} previsto</div></div>
+  <div class="kpi"><div class="l">A receber</div><div class="v ${t.recAb>0?'a':'m'}">${brl(t.recAb)}</div>
+   <div class="s">${t.rec?((t.recPg/t.rec)*100).toFixed(0):0}% da receita ok</div></div>
+  <div class="kpi"><div class="l">Pago</div><div class="v r">${brl(t.cusPg)}</div>
+   <div class="s">de ${brl(t.cus)} de custo</div></div>
+  <div class="kpi"><div class="l">A pagar</div><div class="v ${t.cusAb>0?'a':'m'}">${brl(t.cusAb)}</div>
+   <div class="s">${t.ocup}/${totQuartos()} quartos ocupados</div></div>
+ </div>
+ <h2 class="sec">Por apartamento</h2>`;
+ DATA.forEach(ap=>{const s=apStats(ap,MES);const p=s.rec?Math.min(100,s.recPg/s.rec*100):0;
+  h+=`<div class="card"><div class="aphd">
+   <div><div class="n">${ap.nome}</div><div class="sub">${s.ocup}/${ap.quartos.length} quartos · receita ${brl(s.rec)} · custo ${brl(s.cus)}</div></div>
+   <div class="rt"><div class="v ${s.lucro>=0?'g':'r'}">${brl(s.lucro)}</div>
+    <div class="sub">${(s.marg*100).toFixed(0)}% margem</div></div></div>
+   <div class="bar"><i style="width:${p}%"></i></div></div>`;});
+ h+=`<div class="tools"><button onclick="exportar()">⬇︎ Backup</button><button onclick="importar()">⬆︎ Restaurar</button>
+  <button onclick="${SB&&USER?'sair()':'telaConfig()'}">${SB&&USER?'⏻ Sair':'☁︎ Nuvem'}</button></div>
+ <p class="note">Toque nos valores para editar e nas etiquetas <b>Pago / Pendente</b> para dar baixa. As alterações ficam salvas neste aparelho. Use o backup antes de trocar de celular ou limpar o navegador.</p>`;
+ return h;
+}
+
+/* ---------- LANÇAMENTOS (sanfona) ---------- */
+function vLanc(){
+ let h=`<h2 class="sec">Baixas de ${NOMES[MES]}</h2>
+  <button class="bigadd" onclick="addAp()">+  Adicionar apartamento</button>`;
+ DATA.forEach((ap,ai)=>{
+  const s=apStats(ap,MES), aberto=!!OPEN[ai], editando=!!EDIT[ai];
+  h+=`<div class="card">
+   <div class="aphd" onclick="toggleOpen(${ai})">
+    <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${ap.nome}</div>
+     <div class="sub">${s.ocup}/${ap.quartos.length} quartos · receb. ${brl(s.recPg)} · pago ${brl(s.cusPg)}</div></div>
+    <div class="rt"><div class="v ${s.caixa>=0?'g':'r'}">${brl(s.caixa)}</div><div class="sub">caixa</div></div></div>`;
+  if(aberto){
+   h+=`<div class="sub-h"><span>${editando?'Editando apartamento':'Aluguéis'}</span>
+     <span class="iconbt ${editando?'on':''}" onclick="toggleEdit(${ai})">${editando?'✓ concluir':'✎ editar'}</span></div>`;
+   if(editando){
+    h+=`<div class="rows">
+     <div class="row"><div class="info"><div class="d">Nome do apartamento</div></div>
+      <input class="txt" value="${esc(ap.nome)}" onchange="setApNome(${ai},this.value)"></div>`;
+    ap.quartos.forEach((q,qi)=>{
+     h+=`<div class="row">
+      <input class="txt" placeholder="Nome do integrante" value="${esc(q.inquilino)}" onchange="setInq(${ai},${qi},this.value)">
+      <input class="txt sm" value="${esc(q.quarto)}" onchange="setQNome(${ai},${qi},this.value)">
+      <button class="del" onclick="delQ(${ai},${qi})">×</button></div>`;});
+    h+=`<button class="addbt" onclick="addQ(${ai})">+ adicionar integrante / quarto</button>`;
+    h+=`<div class="sub-h"><span>Categorias de despesa</span></div>`;
+    ap.custos.forEach((x,ci)=>{
+     h+=`<div class="row"><input class="txt" value="${esc(x.nome)}" onchange="setCNome(${ai},${ci},this.value)">
+      <button class="del" onclick="delC(${ai},${ci})">×</button></div>`;});
+    h+=`<button class="addbt" onclick="addC(${ai})">+ adicionar despesa</button>
+      <button class="addbt" style="color:var(--red);border-color:rgba(248,113,113,.3)" onclick="delAp(${ai})">excluir apartamento</button>
+      </div>`;
+   } else {
+    h+=`<div class="rows">`;
+    ap.quartos.forEach((q,qi)=>{const c=q.meses[MES];
+     h+=`<div class="row"><div class="info"><div class="t">${esc(q.inquilino)||'— vago —'}</div><div class="d">${esc(q.quarto)}</div></div>
+      <input class="val" inputmode="numeric" placeholder="R$ 0,00" value="${inMoney(c.v)}"
+        oninput="maskEl(this)" onchange="setV('q',${ai},${qi},this.value)">
+      <div class="pill ${c.pago?'ok':''}" onclick="tog('q',${ai},${qi})">${c.pago?'RECEBIDO':'PENDENTE'}</div></div>`;});
+    h+=`</div><div class="sub-h"><span>Despesas</span></div><div class="rows">`;
+    ap.custos.forEach((x,ci)=>{const c=x.meses[MES];
+     h+=`<div class="row"><div class="info"><div class="t">${esc(x.nome)}</div></div>
+      <input class="val" inputmode="numeric" placeholder="R$ 0,00" value="${inMoney(c.v)}"
+        oninput="maskEl(this)" onchange="setV('c',${ai},${ci},this.value)">
+      <div class="pill ${c.pago?'ko':''}" onclick="tog('c',${ai},${ci})">${c.pago?'PAGO':'PENDENTE'}</div></div>`;});
+    h+=`</div>`;
+   }
+  }
+  h+=`</div>`;});
+ h+=`<p class="note">Toque no cabeçalho para abrir ou fechar o apartamento. Em <b>✎ editar</b> você renomeia o apartamento, troca os integrantes de cada quarto e ajusta as categorias de despesa. Para lançar um estorno, digite o valor e inclua um sinal de menos.</p>`;
+ return h;
+}
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+function toggleOpen(ai){OPEN[ai]=!OPEN[ai];if(!OPEN[ai])EDIT[ai]=false;render();}
+function toggleEdit(ai){EDIT[ai]=!EDIT[ai];render();}
+function tog(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
+ o.meses[MES].pago=!o.meses[MES].pago;save();render();
+ if(navigator.vibrate)navigator.vibrate(8);}
+function setV(t,ai,i,v){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
+ o.meses[MES].v=parseMoney(v);save();render();}
+
+/* ---------- cadastro ---------- */
+function blank(){const o={};MESES.forEach(m=>o[m]={v:0,pago:false});return o;}
+function setApNome(ai,v){DATA[ai].nome=v.trim()||DATA[ai].nome;save();render();}
+function setInq(ai,qi,v){DATA[ai].quartos[qi].inquilino=v.trim();save();render();}
+function setQNome(ai,qi,v){DATA[ai].quartos[qi].quarto=v.trim()||('Quarto '+(qi+1));save();render();}
+function setCNome(ai,ci,v){DATA[ai].custos[ci].nome=v.trim()||DATA[ai].custos[ci].nome;save();render();}
+function addQ(ai){DATA[ai].quartos.push({quarto:'Quarto 0'+(DATA[ai].quartos.length+1),inquilino:'',meses:blank()});save();render();}
+function delQ(ai,qi){if(confirm('Remover '+(DATA[ai].quartos[qi].inquilino||DATA[ai].quartos[qi].quarto)+'?')){DATA[ai].quartos.splice(qi,1);save();render();}}
+function addC(ai){const n=prompt('Nome da despesa:','');if(n&&n.trim()){DATA[ai].custos.push({nome:n.trim(),meses:blank()});save();render();}}
+function delC(ai,ci){if(confirm('Remover a despesa '+DATA[ai].custos[ci].nome+'?')){DATA[ai].custos.splice(ci,1);save();render();}}
+function addAp(){
+ const n=prompt('Nome do apartamento (ex.: 105 - Marieta):','');
+ if(!n||!n.trim())return;
+ const q=parseInt(prompt('Quantos quartos?','5')||'5',10)||5;
+ const ap={id:'ap'+Date.now(),nome:n.trim(),quartos:[],custos:[]};
+ for(let i=0;i<q;i++)ap.quartos.push({quarto:'Quarto 0'+(i+1),inquilino:'',meses:blank()});
+ ['Aluguel','Condominio','Luz','Internet','Reformas'].forEach(c=>ap.custos.push({nome:c,meses:blank()}));
+ DATA.push(ap);OPEN[DATA.length-1]=true;EDIT[DATA.length-1]=true;save();render();
+}
+function delAp(ai){if(confirm('Excluir '+DATA[ai].nome+' e todo o histórico dele?')){DATA.splice(ai,1);OPEN={};EDIT={};save();render();}}
+
+/* ---------- DRE ---------- */
+function dreOf(list,m){
+ const r={receita:0,linhas:{},custo:0};
+ list.forEach(ap=>{ap.quartos.forEach(q=>r.receita+=q.meses[m].v);
+  ap.custos.forEach(x=>{r.linhas[x.nome]=(r.linhas[x.nome]||0)+x.meses[m].v;r.custo+=x.meses[m].v;});});
+ r.lucro=r.receita-r.custo;r.marg=r.receita?r.lucro/r.receita:0;return r;}
+function vDre(){
+ const sel=DRESEL==='TODOS'?DATA:DATA.filter(a=>a.id===DRESEL);
+ const mi=MESES.indexOf(MES);
+ const mes=dreOf(sel,MES);
+ const acc={receita:0,custo:0,lucro:0,linhas:{}};
+ for(let i=0;i<=mi;i++){const d=dreOf(sel,MESES[i]);acc.receita+=d.receita;acc.custo+=d.custo;
+  for(const k in d.linhas)acc.linhas[k]=(acc.linhas[k]||0)+d.linhas[k];}
+ acc.lucro=acc.receita-acc.custo;acc.marg=acc.receita?acc.lucro/acc.receita:0;
+ const cats=[...new Set(sel.flatMap(a=>a.custos.map(c=>c.nome)))];
+ let h=`<h2 class="sec">DRE</h2><div class="seg">
+  <button class="${DRESEL==='TODOS'?'on':''}" onclick="DRESEL='TODOS';render()">Consolidado</button>`+
+  DATA.map(a=>`<button class="${DRESEL===a.id?'on':''}" onclick="DRESEL='${a.id}';render()">${esc(a.nome)}</button>`).join('')+
+ `</div><div class="card"><table>
+  <tr><th>Linha</th><th>${NOMES[MES]}</th><th>Acum. ano</th></tr>
+  <tr><td>Receita bruta (aluguéis)</td><td class="g">${brl(mes.receita)}</td><td class="g">${brl(acc.receita)}</td></tr>`;
+ cats.forEach(k=>{
+  h+=`<tr class="sb"><td>(−) ${esc(k)}</td><td>${brl(mes.linhas[k]||0)}</td><td>${brl(acc.linhas[k]||0)}</td></tr>`;});
+ h+=`<tr><td><b>Custo total</b></td><td class="r">${brl(mes.custo)}</td><td class="r">${brl(acc.custo)}</td></tr>
+  <tr class="tot"><td>Lucro líquido</td><td class="${mes.lucro>=0?'g':'r'}">${brl(mes.lucro)}</td>
+   <td class="${acc.lucro>=0?'g':'r'}">${brl(acc.lucro)}</td></tr>
+  <tr class="sb"><td>Margem líquida</td><td>${(mes.marg*100).toFixed(1)}%</td><td>${(acc.marg*100).toFixed(1)}%</td></tr>
+  </table></div>
+  <p class="note">DRE por competência: considera tudo que foi lançado no mês, pago ou não. O regime de caixa (o que entrou e saiu de fato) está na aba Fluxo.</p>`;
+ return h;
+}
+
+/* ---------- FLUXO ---------- */
+function vFluxo(){
+ const rows=MESES.map(m=>{const t=totStats(m);return{m,...t};});
+ const ativos=rows.filter(r=>r.rec>0||r.cus>0);
+ const max=Math.max(1,...ativos.map(r=>Math.max(r.recPg,r.cusPg)));
+ let acc=0;
+ let h=`<h2 class="sec">Fluxo de caixa · realizado</h2>
+  <div class="card"><div class="chart">`+
+  ativos.map(r=>`<div><b style="height:${r.recPg/max*55}%"></b><u style="height:${r.cusPg/max*55}%"></u></div>`).join('')+
+  `</div><div class="chartx">`+ativos.map(r=>`<span>${r.m}</span>`).join('')+`</div>
+  <table><tr><th>Mês</th><th>Entrou</th><th>Saiu</th><th>Saldo</th><th>Acum.</th></tr>`;
+ ativos.forEach(r=>{acc+=r.caixa;
+  h+=`<tr${r.m===MES?' style="background:var(--card2)"':''}><td>${r.m}</td><td class="g">${brl(r.recPg)}</td>
+   <td class="r">${brl(r.cusPg)}</td><td class="${r.caixa>=0?'g':'r'}">${brl(r.caixa)}</td>
+   <td class="b">${brl(acc)}</td></tr>`;});
+ h+=`<tr class="tot"><td>Total</td><td class="g">${brl(ativos.reduce((s,r)=>s+r.recPg,0))}</td>
+  <td class="r">${brl(ativos.reduce((s,r)=>s+r.cusPg,0))}</td><td class="${acc>=0?'g':'r'}">${brl(acc)}</td><td></td></tr></table></div>`;
+ const pend=[];
+ DATA.forEach(ap=>MESES.slice(0,MESES.indexOf(MES)+1).forEach(m=>{
+  ap.quartos.forEach(q=>{if(q.meses[m].v>0&&!q.meses[m].pago)pend.push({t:'rec',ap:ap.nome,m,n:q.inquilino||q.quarto,v:q.meses[m].v});});
+  ap.custos.forEach(x=>{if(x.meses[m].v>0&&!x.meses[m].pago)pend.push({t:'cus',ap:ap.nome,m,n:x.nome,v:x.meses[m].v});});}));
+ h+=`<h2 class="sec">Pendências até ${NOMES[MES]}</h2><div class="card"><div class="rows">`;
+ if(!pend.length)h+=`<div class="row"><div class="info"><div class="t m">Nada em aberto 🎉</div></div></div>`;
+ pend.slice(0,80).forEach(p=>{h+=`<div class="row"><div class="info"><div class="t">${esc(p.n)}</div>
+  <div class="d">${esc(p.ap)} · ${p.m}</div></div><div class="valro ${p.t==='rec'?'a':'r'}">${brl(p.v)}</div>
+  <div class="pill">${p.t==='rec'?'A RECEBER':'A PAGAR'}</div></div>`;});
+ h+=`</div></div>`;
+ return h;
+}
+
+/* ---------- backup ---------- */
+function exportar(){
+ const blob=new Blob([JSON.stringify(DATA)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+ a.download='4cantos-backup.json';a.click();}
+function importar(){
+ const i=document.createElement('input');i.type='file';i.accept='.json';
+ i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{DATA=JSON.parse(r.result);OPEN={};EDIT={};save();render();}catch(err){alert('Arquivo inválido');}};
+  r.readAsText(f);};
+ i.click();}
+
+/* ---------- render ---------- */
+function render(){
+ document.getElementById('months').innerHTML=MESES.map(m=>
+  `<div class="mchip ${m===MES?'on':''} ${hasData(m)?'':'fut'}" onclick="MES='${m}';render()">${m}</div>`).join('');
+ const t=totStats(MES);
+ const hs=document.getElementById('hdSaldo');
+ hs.textContent=brl(t.caixa);hs.className=t.caixa>=0?'g':'r';
+ document.getElementById('ctxLbl').textContent=NOMES[MES]+' de 2026';
+ ['resumo','lanc','dre','fluxo'].forEach(v=>{
+  const el=document.getElementById('v-'+v);
+  if(v===VIEW){el.classList.remove('hidden');
+   el.innerHTML=v==='resumo'?vResumo():v==='lanc'?vLanc():v==='dre'?vDre():vFluxo();}
+  else el.classList.add('hidden');});
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===VIEW));
+ const on=document.querySelector('.mchip.on');if(on)on.scrollIntoView({inline:'center',block:'nearest'});
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{VIEW=b.dataset.v;window.scrollTo(0,0);render();});
+render();
+boot();
+</script>
+</body>
+</html>
