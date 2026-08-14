@@ -162,7 +162,7 @@ const MESES=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','
 const NOMES={JAN:'Janeiro',FEV:'Fevereiro',MAR:'Março',ABR:'Abril',MAI:'Maio',JUN:'Junho',JUL:'Julho',AGO:'Agosto',SET:'Setembro',OUT:'Outubro',NOV:'Novembro',DEZ:'Dezembro'};
 const KEY='4cantos2026';
 let DATA=null, MES='AGO', VIEW='resumo', DRESEL='TODOS';
-let OPEN={}, EDIT={};
+let OPEN={}, EDIT={}, DREOPEN={};
 
 function load(){ try{const s=localStorage.getItem(KEY); if(s) return JSON.parse(s);}catch(e){} return null; }
 function save(){ lastEdit=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(DATA));}catch(e){} push(); }
@@ -342,9 +342,9 @@ function vResumo(){
  <h2 class="sec">Por apartamento</h2>`;
  DATA.forEach(ap=>{const s=apStats(ap,MES);const p=s.rec?Math.min(100,s.recPg/s.rec*100):0;
   h+=`<div class="card"><div class="aphd">
-   <div><div class="n">${ap.nome}</div><div class="sub">${s.ocup}/${ap.quartos.length} quartos · receita ${brl(s.rec)} · custo ${brl(s.cus)}</div></div>
+   <div><div class="n">${ap.nome}</div><div class="sub">${s.ocup}/${ap.quartos.length} quartos · caixa ${brl(s.caixa)}${s.recAb>0?' · a receber '+brl(s.recAb):''}</div></div>
    <div class="rt"><div class="v ${s.lucro>=0?'g':'r'}">${brl(s.lucro)}</div>
-    <div class="sub">${(s.marg*100).toFixed(0)}% margem</div></div></div>
+    <div class="sub">lucro · ${(s.marg*100).toFixed(0)}%</div></div></div>
    <div class="bar"><i style="width:${p}%"></i></div></div>`;});
  h+=`<div class="tools"><button onclick="exportar()">⬇︎ Backup</button><button onclick="importar()">⬆︎ Restaurar</button>
   <button onclick="${SB&&USER?'sair()':'telaConfig()'}">${SB&&USER?'⏻ Sair':'☁︎ Nuvem'}</button></div>
@@ -461,35 +461,54 @@ function addAp(){
 }
 function delAp(ai){if(confirm('Excluir '+DATA[ai].nome+' e todo o histórico dele?')){DATA.splice(ai,1);OPEN={};EDIT={};save();render();}}
 
-/* ---------- DRE ---------- */
-function dreOf(list,m){
- const r={receita:0,linhas:{},custo:0};
- list.forEach(ap=>{ap.quartos.forEach(q=>r.receita+=q.meses[m].v);
-  ap.custos.forEach(x=>{r.linhas[x.nome]=(r.linhas[x.nome]||0)+x.meses[m].v;r.custo+=x.meses[m].v;});});
- r.lucro=r.receita-r.custo;r.marg=r.receita?r.lucro/r.receita:0;return r;}
+/* ---------- DRE (por apartamento, sanfona) ---------- */
+function toggleDre(ai){DREOPEN[ai]=!DREOPEN[ai];renderKeep();}
 function vDre(){
- const sel=DRESEL==='TODOS'?DATA:DATA.filter(a=>a.id===DRESEL);
  const mi=MESES.indexOf(MES);
- const mes=dreOf(sel,MES);
- const acc={receita:0,custo:0,lucro:0,linhas:{}};
- for(let i=0;i<=mi;i++){const d=dreOf(sel,MESES[i]);acc.receita+=d.receita;acc.custo+=d.custo;
-  for(const k in d.linhas)acc.linhas[k]=(acc.linhas[k]||0)+d.linhas[k];}
- acc.lucro=acc.receita-acc.custo;acc.marg=acc.receita?acc.lucro/acc.receita:0;
- const cats=[...new Set(sel.flatMap(a=>a.custos.map(c=>c.nome)))];
- let h=`<h2 class="sec">DRE</h2><div class="seg">
-  <button class="${DRESEL==='TODOS'?'on':''}" onclick="DRESEL='TODOS';render()">Consolidado</button>`+
-  DATA.map(a=>`<button class="${DRESEL===a.id?'on':''}" onclick="DRESEL='${a.id}';render()">${esc(a.nome)}</button>`).join('')+
- `</div><div class="card"><table>
-  <tr><th>Linha</th><th>${NOMES[MES]}</th><th>Acum. ano</th></tr>
-  <tr><td>Receita bruta (aluguéis)</td><td class="g">${brl(mes.receita)}</td><td class="g">${brl(acc.receita)}</td></tr>`;
- cats.forEach(k=>{
-  h+=`<tr class="sb"><td>(−) ${esc(k)}</td><td>${brl(mes.linhas[k]||0)}</td><td>${brl(acc.linhas[k]||0)}</td></tr>`;});
- h+=`<tr><td><b>Custo total</b></td><td class="r">${brl(mes.custo)}</td><td class="r">${brl(acc.custo)}</td></tr>
-  <tr class="tot"><td>Lucro líquido</td><td class="${mes.lucro>=0?'g':'r'}">${brl(mes.lucro)}</td>
-   <td class="${acc.lucro>=0?'g':'r'}">${brl(acc.lucro)}</td></tr>
-  <tr class="sb"><td>Margem líquida</td><td>${(mes.marg*100).toFixed(1)}%</td><td>${(acc.marg*100).toFixed(1)}%</td></tr>
-  </table></div>
-  <p class="note">DRE por competência: considera tudo que foi lançado no mês, pago ou não. O regime de caixa (o que entrou e saiu de fato) está na aba Fluxo.</p>`;
+ let tRec=0,tCus=0,aRec=0,aCus=0;
+ DATA.forEach(ap=>{
+  ap.quartos.forEach(q=>tRec+=q.meses[MES].v);
+  ap.custos.forEach(x=>tCus+=x.meses[MES].v);
+  for(let i=0;i<=mi;i++){ap.quartos.forEach(q=>aRec+=q.meses[MESES[i]].v);ap.custos.forEach(x=>aCus+=x.meses[MESES[i]].v);}
+ });
+ const tLuc=tRec-tCus, tMarg=tRec?tLuc/tRec:0;
+ let h=`<h2 class="sec">DRE · ${NOMES[MES]}</h2>
+  <div class="kpis"><div class="kpi big"><div class="l">Lucro do mês (competência)</div>
+   <div class="v ${tLuc>=0?'g':'r'}">${brl(tLuc)}</div>
+   <div class="s">receita ${brl(tRec)} · custo ${brl(tCus)} · margem ${(tMarg*100).toFixed(1)}%</div></div>
+   <div class="kpi"><div class="l">Receita (aluguéis)</div><div class="v g">${brl(tRec)}</div><div class="s">no mês</div></div>
+   <div class="kpi"><div class="l">Custo total</div><div class="v r">${brl(tCus)}</div><div class="s">no mês</div></div>
+   <div class="kpi big"><div class="l">Lucro acumulado no ano</div><div class="v ${(aRec-aCus)>=0?'g':'r'}">${brl(aRec-aCus)}</div>
+    <div class="s">receita ${brl(aRec)} · custo ${brl(aCus)}</div></div></div>
+  <h2 class="sec">Por apartamento · toque para abrir</h2>`;
+ DATA.forEach((ap,ai)=>{
+  const aberto=!!DREOPEN[ai];
+  let sumA=0,sumD=0;
+  ap.quartos.forEach(q=>sumA+=q.meses[MES].v);
+  ap.custos.forEach(x=>sumD+=x.meses[MES].v);
+  const luc=sumA-sumD, marg=sumA?luc/sumA:0;
+  h+=`<div class="card">
+   <div class="aphd" onclick="toggleDre(${ai})">
+    <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${esc(ap.nome)}</div>
+     <div class="sub">aluguéis ${brl(sumA)} · despesas ${brl(sumD)}</div></div>
+    <div class="rt"><div class="v ${luc>=0?'g':'r'}">${brl(luc)}</div><div class="sub">${(marg*100).toFixed(0)}% margem</div></div></div>`;
+  if(aberto){
+   h+=`<div class="sub-h"><span>Aluguéis</span></div><div class="rows">`;
+   ap.quartos.forEach(q=>{const v=q.meses[MES].v;
+    h+=`<div class="row"><div class="info"><div class="t">${esc(q.inquilino)||'— vago —'}</div><div class="d">${esc(q.quarto)}</div></div>
+     <div class="valro g">${v?brl(v):'—'}</div></div>`;});
+   h+=`<div class="row" style="background:var(--card2)"><div class="info"><div class="t" style="font-weight:800">Total aluguéis</div></div><div class="valro g" style="font-weight:800">${brl(sumA)}</div></div>`;
+   h+=`</div><div class="sub-h"><span>Despesas</span></div><div class="rows">`;
+   ap.custos.forEach(x=>{const v=x.meses[MES].v;
+    h+=`<div class="row"><div class="info"><div class="t">${esc(x.nome)}</div></div>
+     <div class="valro r">${v?brl(v):'—'}</div></div>`;});
+   h+=`<div class="row" style="background:var(--card2)"><div class="info"><div class="t" style="font-weight:800">Total despesas</div></div><div class="valro r" style="font-weight:800">${brl(sumD)}</div></div>`;
+   h+=`<div class="row" style="background:var(--card2)"><div class="info"><div class="t" style="font-weight:800">Lucro (aluguéis − despesas)</div></div><div class="valro ${luc>=0?'g':'r'}" style="font-weight:800">${brl(luc)}</div></div>`;
+   h+=`</div>`;
+  }
+  h+=`</div>`;
+ });
+ h+=`<p class="note">DRE por competência: soma tudo que foi lançado no mês, pago ou não. O que de fato entrou e saiu está na aba Fluxo; o caixa por apartamento (recebido − pago) está na aba Lançar.</p>`;
  return h;
 }
 
