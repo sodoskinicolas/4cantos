@@ -134,6 +134,9 @@ nav button.on{color:var(--tx)}
 .sync{font-size:10px;color:var(--mut);letter-spacing:.4px;display:flex;align-items:center;gap:5px;justify-content:flex-end}
 .sync i{width:6px;height:6px;border-radius:50%;background:var(--mut);display:block}
 .sync.ok i{background:var(--grn)}.sync.busy i{background:var(--amb)}.sync.off i{background:var(--red)}
+.vbadge{font-size:9px;font-weight:800;padding:2px 7px;border-radius:999px;letter-spacing:.4px;margin-left:4px;vertical-align:middle}
+.vbadge.ok{background:rgba(52,211,153,.16);color:var(--grn)}
+.vbadge.ko{background:rgba(248,113,113,.14);color:var(--red)}
 </style>
 </head>
 <body>
@@ -152,6 +155,7 @@ nav button.on{color:var(--tx)}
  <div id="v-lanc" class="hidden"></div>
  <div id="v-dre" class="hidden"></div>
  <div id="v-fluxo" class="hidden"></div>
+ <div id="v-viab" class="hidden"></div>
 </div>
 
 <nav>
@@ -159,6 +163,7 @@ nav button.on{color:var(--tx)}
  <button data-v="lanc"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Lançar</button>
  <button data-v="dre"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>DRE</button>
  <button data-v="fluxo"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Fluxo</button>
+ <button data-v="viab"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h4"/></svg>Viab.</button>
 </nav>
 
 
@@ -167,12 +172,20 @@ const SEED = [{"id": "142", "nome": "142 - Marieta", "quartos": [{"quarto": "Qua
 const MESES=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 const NOMES={JAN:'Janeiro',FEV:'Fevereiro',MAR:'Março',ABR:'Abril',MAI:'Maio',JUN:'Junho',JUL:'Julho',AGO:'Agosto',SET:'Setembro',OUT:'Outubro',NOV:'Novembro',DEZ:'Dezembro'};
 const KEY='4cantos2026';
-let DATA=null, MES='AGO', VIEW='resumo', DRESEL='TODOS';
-let OPEN={}, EDIT={}, DREOPEN={};
+let DATA=null, VIAB=[], MES='AGO', VIEW='resumo', DRESEL='TODOS';
+let OPEN={}, EDIT={}, DREOPEN={}, VIABOPEN={};
 
 function load(){ try{const s=localStorage.getItem(KEY); if(s) return JSON.parse(s);}catch(e){} return null; }
-function save(){ lastEdit=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(DATA));}catch(e){} push(); }
+function loadViab(){ try{const s=localStorage.getItem('4cantos_viab'); if(s) return JSON.parse(s);}catch(e){} return []; }
+function save(){ lastEdit=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(DATA));localStorage.setItem('4cantos_viab',JSON.stringify(VIAB));}catch(e){} push(); }
+function payload(){ return {aps:DATA, viab:VIAB}; }
+function applyRemote(d){
+ if(Array.isArray(d)){DATA=d;}
+ else if(d&&typeof d==='object'){if(Array.isArray(d.aps))DATA=d.aps; if(Array.isArray(d.viab))VIAB=d.viab;}
+ try{localStorage.setItem(KEY,JSON.stringify(DATA));localStorage.setItem('4cantos_viab',JSON.stringify(VIAB));}catch(e){}
+}
 DATA = load() || JSON.parse(JSON.stringify(SEED));
+VIAB = loadViab();
 
 /* ================= NUVEM (Supabase) ================= */
 const CFGK='4cantos_cfg';
@@ -245,28 +258,28 @@ async function boot(){
  USER=session.user;ovl(null);setSync('busy','carregando…');
  const {data,error}=await SB.from('painel').select('dados').eq('user_id',USER.id).maybeSingle();
  if(error){setSync('off','erro: '+error.message);render();return;}
- if(data&&data.dados){DATA=data.dados;try{localStorage.setItem(KEY,JSON.stringify(DATA))}catch(e){}}
- else{await SB.from('painel').upsert({user_id:USER.id,dados:DATA,atualizado_em:new Date().toISOString()});}
+ if(data&&data.dados){applyRemote(data.dados);}
+ else{await SB.from('painel').upsert({user_id:USER.id,dados:payload(),atualizado_em:new Date().toISOString()});}
  ONLINE=true;setSync('ok','sincronizado');render();
  SB.channel('painel-'+USER.id).on('postgres_changes',
   {event:'*',schema:'public',table:'painel',filter:'user_id=eq.'+USER.id},
   p=>{if(Date.now()-lastEdit<5000)return; /* não sobrescreve edição local recente (evita eco antigo reverter) */
-   if(p.new&&p.new.dados&&JSON.stringify(p.new.dados)!==JSON.stringify(DATA)){
-   DATA=p.new.dados;try{localStorage.setItem(KEY,JSON.stringify(DATA))}catch(e){}renderKeep();
+   if(p.new&&p.new.dados&&JSON.stringify(p.new.dados)!==JSON.stringify(payload())){
+   applyRemote(p.new.dados);renderKeep();
    setSync('ok','atualizado de outro aparelho');}}).subscribe();
 }
 async function puxarNuvem(){
  if(!ONLINE||!SB||!USER)return; if(Date.now()-lastEdit<5000)return;
  try{const {data}=await SB.from('painel').select('dados').eq('user_id',USER.id).maybeSingle();
-  if(data&&data.dados&&JSON.stringify(data.dados)!==JSON.stringify(DATA)){
-   DATA=data.dados;try{localStorage.setItem(KEY,JSON.stringify(DATA))}catch(e){}renderKeep();}}catch(e){}
+  if(data&&data.dados&&JSON.stringify(data.dados)!==JSON.stringify(payload())){
+   applyRemote(data.dados);renderKeep();}}catch(e){}
 }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) puxarNuvem(); });
 function push(){
  if(!ONLINE||!SB||!USER)return;
  setSync('busy','salvando…');clearTimeout(tmr);
  tmr=setTimeout(async()=>{
-  const {error}=await SB.from('painel').upsert({user_id:USER.id,dados:DATA,atualizado_em:new Date().toISOString()});
+  const {error}=await SB.from('painel').upsert({user_id:USER.id,dados:payload(),atualizado_em:new Date().toISOString()});
   setSync(error?'off':'ok',error?'falha ao salvar':'sincronizado');
  },700);
 }
@@ -418,6 +431,7 @@ function toggleCard(ai,el,which){
  let topBefore=null; const card=(el&&el.closest)?el.closest('.card'):null;
  if(card)topBefore=card.getBoundingClientRect().top;
  if(which==='dre')DREOPEN[ai]=!DREOPEN[ai];
+ else if(which==='viab')VIABOPEN[ai]=!VIABOPEN[ai];
  else{OPEN[ai]=!OPEN[ai];if(!OPEN[ai])EDIT[ai]=false;}
  render();
  if(topBefore!=null){const nc=document.querySelectorAll('#v-'+VIEW+' .card')[ai];
@@ -425,6 +439,7 @@ function toggleCard(ai,el,which){
 }
 function toggleOpen(ai,el){toggleCard(ai,el,'lanc');}
 function toggleDre(ai,el){toggleCard(ai,el,'dre');}
+function toggleViab(i,el){toggleCard(i,el,'viab');}
 function toggleEdit(ai){EDIT[ai]=!EDIT[ai];render();}
 function cyclePg(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];const c=o.meses[MES];
  const st=statusPg(c);
@@ -478,7 +493,6 @@ function addAp(){
 function delAp(ai){if(confirm('Excluir '+DATA[ai].nome+' e todo o histórico dele?')){DATA.splice(ai,1);OPEN={};EDIT={};save();render();}}
 
 /* ---------- Detalhe por apartamento (usado no Resumo, sanfona) ---------- */
-function toggleDre(ai){DREOPEN[ai]=!DREOPEN[ai];renderKeep();}
 function apDetalheHTML(ap){
  let sumA=0,sumD=0;
  let h=`<div class="dtl"><div class="h">Aluguéis · ${NOMES[MES]}</div>`;
@@ -555,15 +569,81 @@ function vFluxo(){
  return h;
 }
 
+/* ---------- VIABILIDADE ---------- */
+function viabCalc(s){
+ const quartos=+s.quartos||0, vq=+s.valorQuarto||0;
+ const fat=quartos*vq;
+ const custo=(+s.aluguel||0)+(+s.condominio||0)+(+s.luz||0)+(+s.internet||0)+(+s.taxas||0);
+ const lucro=fat-custo;
+ const marg=fat?lucro/fat:0;
+ const invest=+s.invest||0;
+ const payback=lucro>0?invest/lucro:0;
+ const aprovado=lucro>0&&marg>=0.30;
+ return {fat,custo,lucro,marg,invest,payback,aprovado};
+}
+function viabMoney(i,key,label){const s=VIAB[i];
+ return `<div class="row"><div class="info"><div class="t">${label}</div></div>
+  <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(s[key]||0)}" onfocus="this.select()"
+    oninput="valInput(this)" onchange="setViab(${i},'${key}',parseVal(this.value))"></div>`;
+}
+function vViab(){
+ let h=`<h2 class="sec">Viabilidade de apartamentos</h2>
+  <button class="bigadd" onclick="addViab()">+  Novo estudo de apartamento</button>`;
+ if(!VIAB.length) h+=`<p class="note">Cadastre um apartamento que você está pensando em alugar para sublocar por quartos. Informe o aluguel e os custos fixos, quantos quartos dá para fazer e por quanto aluga cada um — o painel calcula faturamento, lucro, margem e em quantos meses o investimento volta, e diz se está <b>aprovado</b>.</p>`;
+ VIAB.forEach((s,i)=>{
+  const c=viabCalc(s), aberto=!!VIABOPEN[i];
+  h+=`<div class="card">
+   <div class="aphd" onclick="toggleViab(${i},this)">
+    <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${esc(s.nome)||'Sem nome'}<span class="vbadge ${c.aprovado?'ok':'ko'}">${c.aprovado?'APROVADO':'REPROVADO'}</span></div>
+     <div class="sub">${(+s.quartos||0)} quartos · ${brl(s.valorQuarto||0)}/quarto · margem ${(c.marg*100).toFixed(0)}%</div></div>
+    <div class="rt"><div class="v ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</div><div class="sub">lucro/mês</div></div></div>`;
+  if(aberto){
+   h+=`<div class="rows">
+     <div class="row"><div class="info"><div class="d">Nome / referência do apartamento</div></div>
+      <input class="txt" placeholder="ex.: 302 - Centro" value="${esc(s.nome)}" onchange="setViab(${i},'nome',this.value)"></div>
+     <div class="row"><div class="info"><div class="t">Quartos a fazer</div></div>
+      <input class="val" inputmode="numeric" value="${(+s.quartos||0)||''}" onfocus="this.select()" onchange="setViab(${i},'quartos',Math.max(0,parseInt(this.value)||0))"></div>`
+    +viabMoney(i,'valorQuarto','Valor por quarto')
+    +`<div class="sub-h"><span>Custos fixos mensais</span></div>`
+    +viabMoney(i,'aluguel','Aluguel do apartamento')
+    +viabMoney(i,'condominio','Condomínio')
+    +viabMoney(i,'luz','Luz')
+    +viabMoney(i,'internet','Internet')
+    +viabMoney(i,'taxas','Outras taxas')
+    +`<div class="sub-h"><span>Investimento inicial (opcional)</span></div>`
+    +viabMoney(i,'invest','Móveis, reforma, montagem')
+    +`</div>
+    <div class="dtl">
+     <div class="dr"><span class="nm">Faturamento (${(+s.quartos||0)} × ${brl(s.valorQuarto||0)})</span><span class="vl g">${brl(c.fat)}</span></div>
+     <div class="dr"><span class="nm">Custo total mensal</span><span class="vl r">${brl(c.custo)}</span></div>
+     <div class="dr tt"><span class="nm">Lucro mensal</span><span class="vl ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</span></div>
+     <div class="dr"><span class="nm">Margem sobre faturamento</span><span class="vl ${c.marg>=.3?'g':c.marg>0?'a':'r'}">${(c.marg*100).toFixed(1)}%</span></div>
+     <div class="dr"><span class="nm">Retorno do investimento</span><span class="vl b">${c.invest>0&&c.lucro>0?c.payback.toFixed(1)+' meses':'—'}</span></div>
+     <div class="dr tt"><span class="nm">Veredito</span><span class="vl ${c.aprovado?'g':'r'}">${c.aprovado?'✓ Vale a pena':'✕ Não compensa'}</span></div>
+    </div>
+    <button class="addbt" style="color:var(--red);border-color:rgba(248,113,113,.3)" onclick="delViab(${i})">excluir estudo</button>`;
+  }
+  h+=`</div>`;
+ });
+ h+=`<p class="note">Regra do veredito: <b>aprovado</b> quando o lucro é positivo e a margem sobre o faturamento fica em <b>30% ou mais</b> — folga suficiente para vacância e imprevistos. Estes estudos ficam só aqui na aba Viabilidade e sincronizam com seus aparelhos, sem misturar com os apartamentos ativos.</p>`;
+ return h;
+}
+function addViab(){
+ VIAB.push({id:'vb'+Date.now(),nome:'',quartos:3,valorQuarto:0,aluguel:0,condominio:0,luz:0,internet:0,taxas:0,invest:0});
+ VIABOPEN[VIAB.length-1]=true;save();render();
+}
+function delViab(i){if(confirm('Excluir este estudo de viabilidade?')){VIAB.splice(i,1);VIABOPEN={};save();render();}}
+function setViab(i,key,val){VIAB[i][key]=val;save();renderKeep();}
+
 /* ---------- backup ---------- */
 function exportar(){
- const blob=new Blob([JSON.stringify(DATA)],{type:'application/json'});
+ const blob=new Blob([JSON.stringify(payload())],{type:'application/json'});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
  a.download='4cantos-backup.json';a.click();}
 function importar(){
  const i=document.createElement('input');i.type='file';i.accept='.json';
  i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{DATA=JSON.parse(r.result);OPEN={};EDIT={};save();render();}catch(err){alert('Arquivo inválido');}};
+  r.onload=()=>{try{applyRemote(JSON.parse(r.result));OPEN={};EDIT={};save();render();}catch(err){alert('Arquivo inválido');}};
   r.readAsText(f);};
  i.click();}
 
@@ -575,10 +655,10 @@ function render(){
  const hs=document.getElementById('hdSaldo');
  hs.textContent=brl(t.caixa);hs.className=t.caixa>=0?'g':'r';
  document.getElementById('ctxLbl').textContent=NOMES[MES]+' de 2026';
- ['resumo','lanc','dre','fluxo'].forEach(v=>{
+ ['resumo','lanc','dre','fluxo','viab'].forEach(v=>{
   const el=document.getElementById('v-'+v);
   if(v===VIEW){el.classList.remove('hidden');
-   el.innerHTML=v==='resumo'?vResumo():v==='lanc'?vLanc():v==='dre'?vDre():vFluxo();}
+   el.innerHTML=v==='resumo'?vResumo():v==='lanc'?vLanc():v==='dre'?vDre():v==='fluxo'?vFluxo():vViab();}
   else el.classList.add('hidden');});
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===VIEW));
  const on=document.querySelector('.mchip.on');if(on)on.scrollIntoView({inline:'center',block:'nearest'});
