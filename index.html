@@ -53,7 +53,7 @@ h2.sec{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--m
 .bar{height:5px;background:var(--card2);border-radius:9px;overflow:hidden;margin:0 14px 12px}
 .bar i{display:block;height:100%;background:var(--grn);border-radius:9px;transition:width .3s}
 .rows{border-top:1px solid var(--line)}
-.row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .row .info{flex:1;min-width:0}
 .row .t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -68,6 +68,9 @@ h2.sec{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--m
 .pill.ok{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35);color:var(--grn)}
 .pill.ko{background:rgba(248,113,113,.13);border-color:rgba(248,113,113,.3);color:var(--red)}
 .pill.pa{background:rgba(251,191,36,.15);border-color:rgba(251,191,36,.4);color:var(--amb)}
+.clr{flex:0 0 auto;width:30px;height:38px;border-radius:9px;background:var(--card2);border:1px solid var(--line);
+ color:var(--mut);font-size:19px;line-height:1;font-weight:600;font-family:inherit;padding:0}
+.clr:active{background:rgba(248,113,113,.15);color:var(--red)}
 .sub-h{padding:9px 14px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);
  font-weight:700;background:var(--card2);border-top:1px solid var(--line);display:flex;justify-content:space-between}
 .txt{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);color:var(--tx);font-family:inherit;
@@ -351,8 +354,10 @@ function vResumo(){
 
 /* ---------- LANÇAMENTOS (sanfona) ---------- */
 function vLanc(){
+ const mi=MESES.indexOf(MES);
  let h=`<h2 class="sec">Baixas de ${NOMES[MES]}</h2>
   <button class="bigadd" onclick="addAp()">+  Adicionar apartamento</button>`;
+ if(mi>0) h+=`<button class="bigadd" style="background:var(--card2);border-color:var(--line);color:var(--tx)" onclick="repetirMes()">↻  Repetir valores de ${NOMES[MESES[mi-1]]}</button>`;
  DATA.forEach((ap,ai)=>{
   const s=apStats(ap,MES), aberto=!!OPEN[ai], editando=!!EDIT[ai];
   h+=`<div class="card">
@@ -384,14 +389,16 @@ function vLanc(){
     h+=`<div class="rows">`;
     ap.quartos.forEach((q,qi)=>{const c=q.meses[MES];const st=statusPg(c);
      h+=`<div class="row"><div class="info"><div class="t">${esc(q.inquilino)||'— vago —'}</div><div class="d">${esc(q.quarto)}${st==='pa'?' · recebido '+brl(pagoVal(c)):''}</div></div>
-      <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(c.v)}"
+      <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(c.v)}" onfocus="this.select()"
         oninput="valInput(this)" onchange="setV('q',${ai},${qi},this.value)">
+      <button class="clr" onclick="clr('q',${ai},${qi})" title="apagar">×</button>
       <div class="pill ${st==='ok'?'ok':st==='pa'?'pa':''}" onclick="cyclePg('q',${ai},${qi})">${st==='ok'?'RECEBIDO':st==='pa'?'PARCIAL':'PENDENTE'}</div></div>`;});
     h+=`</div><div class="sub-h"><span>Despesas</span></div><div class="rows">`;
     ap.custos.forEach((x,ci)=>{const c=x.meses[MES];const st=statusPg(c);
      h+=`<div class="row"><div class="info"><div class="t">${esc(x.nome)}</div>${st==='pa'?'<div class="d">pago '+brl(pagoVal(c))+'</div>':''}</div>
-      <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(c.v)}"
+      <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(c.v)}" onfocus="this.select()"
         oninput="valInput(this)" onchange="setV('c',${ai},${ci},this.value)">
+      <button class="clr" onclick="clr('c',${ai},${ci})" title="apagar">×</button>
       <div class="pill ${st==='ok'?'ko':st==='pa'?'pa':''}" onclick="cyclePg('c',${ai},${ci})">${st==='ok'?'PAGO':st==='pa'?'PARCIAL':'PENDENTE'}</div></div>`;});
     h+=`</div>`;
    }
@@ -421,6 +428,17 @@ function baixaPend(t,ai,i,m,el){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].cus
  o.meses[m].pago=true;o.meses[m].pg=0;save();
  if(el){el.classList.add('ok');el.textContent=t==='q'?'✓ RECEBIDO':'✓ PAGO';el.onclick=null;el.style.opacity='.75';}
  if(navigator.vibrate)navigator.vibrate(8);}
+function clr(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
+ o.meses[MES]={v:0,pago:false,pg:0};save();renderKeep();}
+function repetirMes(){const mi=MESES.indexOf(MES);if(mi<=0)return;const prev=MESES[mi-1];
+ let n=0;
+ DATA.forEach(ap=>{
+  ap.quartos.forEach(q=>{const c=q.meses[MES],pv=q.meses[prev];
+   if((c.v||0)===0&&!c.pago&&!(c.pg>0)&&pv&&pv.v){c.v=pv.v;c.pago=false;c.pg=0;n++;}});
+  ap.custos.forEach(x=>{const c=x.meses[MES],pv=x.meses[prev];
+   if((c.v||0)===0&&!c.pago&&!(c.pg>0)&&pv&&pv.v){c.v=pv.v;c.pago=false;c.pg=0;n++;}});});
+ save();renderKeep();
+ setSync('ok',n?('copiados '+n+' valores'):'nada para copiar');}
 
 /* ---------- cadastro ---------- */
 function blank(){const o={};MESES.forEach(m=>o[m]={v:0,pago:false});return o;}
