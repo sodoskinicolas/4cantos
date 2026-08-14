@@ -71,6 +71,12 @@ h2.sec{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--m
 .clr{flex:0 0 auto;width:30px;height:38px;border-radius:9px;background:var(--card2);border:1px solid var(--line);
  color:var(--mut);font-size:19px;line-height:1;font-weight:600;font-family:inherit;padding:0}
 .clr:active{background:rgba(248,113,113,.15);color:var(--red)}
+.dtl{padding:2px 14px 12px;border-top:1px solid var(--line)}
+.dtl .h{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);font-weight:700;margin:9px 0 2px}
+.dtl .dr{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0;border-bottom:1px solid rgba(37,43,56,.6)}
+.dtl .dr .nm{color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.dtl .dr .vl{font-weight:700;flex:0 0 auto}
+.dtl .dr.tt{font-weight:800;font-size:13px;border-bottom:0;border-top:1px solid var(--line);padding-top:5px;margin-top:1px}
 .sub-h{padding:9px 14px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);
  font-weight:700;background:var(--card2);border-top:1px solid var(--line);display:flex;justify-content:space-between}
 .txt{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);color:var(--tx);font-family:inherit;
@@ -464,16 +470,17 @@ function delAp(ai){if(confirm('Excluir '+DATA[ai].nome+' e todo o histórico del
 /* ---------- Detalhe por apartamento (usado no Resumo, sanfona) ---------- */
 function toggleDre(ai){DREOPEN[ai]=!DREOPEN[ai];renderKeep();}
 function apDetalheHTML(ap){
- let sumA=0,sumD=0,h='';
- h+=`<div class="sub-h"><span>Aluguéis · ${NOMES[MES]}</span></div><div class="rows">`;
+ let sumA=0,sumD=0;
+ let h=`<div class="dtl"><div class="h">Aluguéis · ${NOMES[MES]}</div>`;
  ap.quartos.forEach(q=>{const v=q.meses[MES].v;sumA+=v;
-  h+=`<div class="row"><div class="info"><div class="t">${esc(q.inquilino)||'— vago —'}</div><div class="d">${esc(q.quarto)}</div></div><div class="valro g">${v?brl(v):'—'}</div></div>`;});
- h+=`<div class="row" style="background:var(--card2)"><div class="info"><div class="t" style="font-weight:800">Total aluguéis</div></div><div class="valro g" style="font-weight:800">${brl(sumA)}</div></div>`;
- h+=`</div><div class="sub-h"><span>Despesas</span></div><div class="rows">`;
+  h+=`<div class="dr"><span class="nm">${esc(q.inquilino)||'— vago —'} · ${esc(q.quarto)}</span><span class="vl g">${v?brl(v):'—'}</span></div>`;});
+ h+=`<div class="dr tt"><span class="nm">Total aluguéis</span><span class="vl g">${brl(sumA)}</span></div>`;
+ h+=`<div class="h">Despesas</div>`;
  ap.custos.forEach(x=>{const v=x.meses[MES].v;sumD+=v;
-  h+=`<div class="row"><div class="info"><div class="t">${esc(x.nome)}</div></div><div class="valro r">${v?brl(v):'—'}</div></div>`;});
- h+=`<div class="row" style="background:var(--card2)"><div class="info"><div class="t" style="font-weight:800">Total despesas</div></div><div class="valro r" style="font-weight:800">${brl(sumD)}</div></div>`;
- h+=`<div class="row" style="background:var(--card2)"><div class="info"><div class="t" style="font-weight:800">Lucro (aluguéis − despesas)</div></div><div class="valro ${sumA-sumD>=0?'g':'r'}" style="font-weight:800">${brl(sumA-sumD)}</div></div></div>`;
+  h+=`<div class="dr"><span class="nm">${esc(x.nome)}</span><span class="vl r">${v?brl(v):'—'}</span></div>`;});
+ h+=`<div class="dr tt"><span class="nm">Total despesas</span><span class="vl r">${brl(sumD)}</span></div>`;
+ h+=`<div class="dr tt"><span class="nm">Lucro (aluguéis − despesas)</span><span class="vl ${sumA-sumD>=0?'g':'r'}">${brl(sumA-sumD)}</span></div>`;
+ h+=`</div>`;
  return h;
 }
 /* ---------- DRE ---------- */
