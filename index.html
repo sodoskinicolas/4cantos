@@ -162,14 +162,15 @@ let DATA=null, MES='AGO', VIEW='resumo', DRESEL='TODOS';
 let OPEN={}, EDIT={};
 
 function load(){ try{const s=localStorage.getItem(KEY); if(s) return JSON.parse(s);}catch(e){} return null; }
-function save(){ try{localStorage.setItem(KEY,JSON.stringify(DATA));}catch(e){} push(); }
+function save(){ lastEdit=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(DATA));}catch(e){} push(); }
 DATA = load() || JSON.parse(JSON.stringify(SEED));
 
 /* ================= NUVEM (Supabase) ================= */
 const CFGK='4cantos_cfg';
 const DEFAULT_CFG={url:'https://rktijrigwvkllofvwhqc.supabase.co', key:'sb_publishable_S9qvuMukZIAmHC04-B4zog_1GsKFN0s'};
-let SB=null, USER=null, tmr=null, ONLINE=false;
+let SB=null, USER=null, tmr=null, ONLINE=false, lastEdit=0;
 function cfg(){try{const s=localStorage.getItem(CFGK); if(s) return JSON.parse(s);}catch(e){} return DEFAULT_CFG;}
+function renderKeep(){const y=window.scrollY;render();window.scrollTo(0,y);}
 function setSync(cls,txt){const e=document.getElementById('syncLbl');
  if(e){e.className='sync '+cls;e.querySelector('span').textContent=txt;}}
 function ovl(html){const o=document.getElementById('ovl');
@@ -240,10 +241,18 @@ async function boot(){
  ONLINE=true;setSync('ok','sincronizado');render();
  SB.channel('painel-'+USER.id).on('postgres_changes',
   {event:'*',schema:'public',table:'painel',filter:'user_id=eq.'+USER.id},
-  p=>{if(p.new&&p.new.dados&&JSON.stringify(p.new.dados)!==JSON.stringify(DATA)){
-   DATA=p.new.dados;try{localStorage.setItem(KEY,JSON.stringify(DATA))}catch(e){}render();
+  p=>{if(Date.now()-lastEdit<5000)return; /* não sobrescreve edição local recente (evita eco antigo reverter) */
+   if(p.new&&p.new.dados&&JSON.stringify(p.new.dados)!==JSON.stringify(DATA)){
+   DATA=p.new.dados;try{localStorage.setItem(KEY,JSON.stringify(DATA))}catch(e){}renderKeep();
    setSync('ok','atualizado de outro aparelho');}}).subscribe();
 }
+async function puxarNuvem(){
+ if(!ONLINE||!SB||!USER)return; if(Date.now()-lastEdit<5000)return;
+ try{const {data}=await SB.from('painel').select('dados').eq('user_id',USER.id).maybeSingle();
+  if(data&&data.dados&&JSON.stringify(data.dados)!==JSON.stringify(DATA)){
+   DATA=data.dados;try{localStorage.setItem(KEY,JSON.stringify(DATA))}catch(e){}renderKeep();}}catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) puxarNuvem(); });
 function push(){
  if(!ONLINE||!SB||!USER)return;
  setSync('busy','salvando…');clearTimeout(tmr);
@@ -405,9 +414,9 @@ function cyclePg(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
   else if(val>=c.v){c.pago=true;c.pg=0;}
   else {c.pago=false;c.pg=val;}
  } else {c.pago=false;c.pg=0;}
- save();render(); if(navigator.vibrate)navigator.vibrate(8);}
+ save();renderKeep(); if(navigator.vibrate)navigator.vibrate(8);}
 function setV(t,ai,i,v){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
- o.meses[MES].v=parseVal(v);save();render();}
+ o.meses[MES].v=parseVal(v);save();renderKeep();}
 function baixaPend(t,ai,i,m,el){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
  o.meses[m].pago=true;o.meses[m].pg=0;save();
  if(el){el.classList.add('ok');el.textContent=t==='q'?'✓ RECEBIDO':'✓ PAGO';el.onclick=null;el.style.opacity='.75';}
