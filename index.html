@@ -173,7 +173,7 @@ const MESES=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','
 const NOMES={JAN:'Janeiro',FEV:'Fevereiro',MAR:'Março',ABR:'Abril',MAI:'Maio',JUN:'Junho',JUL:'Julho',AGO:'Agosto',SET:'Setembro',OUT:'Outubro',NOV:'Novembro',DEZ:'Dezembro'};
 const KEY='4cantos2026';
 let DATA=null, VIAB=[], MES='AGO', VIEW='resumo', DRESEL='TODOS';
-let OPEN={}, EDIT={}, DREOPEN={}, VIABOPEN={};
+let OPEN={}, EDIT={}, DREOPEN={}, VIABOPEN={}, VIABPER=12;
 let FOCUS_NEXT=null;
 
 function load(){ try{const s=localStorage.getItem(KEY); if(s) return JSON.parse(s);}catch(e){} return null; }
@@ -585,6 +585,23 @@ function viabCalc(s){
  const aprovado=marg>=0.40||lucro>=2000;  // 40% de margem OU R$2.000/mês de lucro aprova
  return {custo,valorQuarto,vqAuto,manual,fat,lucro,marg,invest,payback,aprovado,padrao,fazer};
 }
+/* TIR mensal: taxa r que zera o VPL de -invest em t0 + lucro por mês em t=1..n */
+function irr(invest,cash,n){
+ if(invest<=0||cash<=0||n<=0)return null;
+ const npv=r=>{let s=-invest;for(let t=1;t<=n;t++)s+=cash/Math.pow(1+r,t);return s;};
+ let lo=-0.9999,hi=10; while(npv(hi)>0&&hi<1e6)hi*=10;
+ for(let i=0;i<200;i++){const mid=(lo+hi)/2; if(npv(mid)>0)lo=mid; else hi=mid;}
+ return (lo+hi)/2;
+}
+/* ROI e TIR de um estudo para um horizonte de n meses */
+function viabRet(c,n){
+ const ret=c.lucro*n;                 // retorno acumulado no período
+ const liq=ret-c.invest;              // lucro líquido depois de devolver o investimento
+ const roi=c.invest>0?liq/c.invest:null;
+ const tirM=irr(c.invest,c.lucro,n);
+ const tirA=tirM!=null?Math.pow(1+tirM,12)-1:null;
+ return {ret,liq,roi,tirM,tirA};
+}
 function viabMoney(i,key,label){const s=VIAB[i];
  return `<div class="row"><div class="info"><div class="t">${label}</div></div>
   <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(s[key]||0)}" onfocus="this.select()"
@@ -593,6 +610,12 @@ function viabMoney(i,key,label){const s=VIAB[i];
 function vViab(){
  let h=`<h2 class="sec">Viabilidade de apartamentos</h2>
   <button class="bigadd" onclick="addViab()">+  Novo estudo de apartamento</button>`;
+ if(VIAB.length) h+=`<h2 class="sec">Retorno sobre o investimento · horizonte</h2>
+  <div class="seg">
+   <button class="${VIABPER===6?'on':''}" onclick="VIABPER=6;render()">6 meses</button>
+   <button class="${VIABPER===12?'on':''}" onclick="VIABPER=12;render()">12 meses</button>
+   <button class="${VIABPER===30?'on':''}" onclick="VIABPER=30;render()">30 meses</button>
+  </div>`;
  if(!VIAB.length) h+=`<p class="note">Cadastre um apartamento que você está pensando em alugar para sublocar por quartos. Informe o aluguel e as despesas, quantos quartos ele já tem (padrão) e quantos dá para fazer dividindo. O painel divide o custo pelos quartos padrão para achar o <b>valor por quarto</b>, multiplica pelos quartos a fazer e mostra o lucro. <b>Aprovado</b> a partir de 40% de margem.</p>`;
  VIAB.forEach((s,i)=>{
   const c=viabCalc(s), aberto=!!VIABOPEN[i];
@@ -633,10 +656,18 @@ function vViab(){
      <div class="dr tt"><span class="nm">Lucro mensal</span><span class="vl ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</span></div>
      <div class="dr"><span class="nm">Margem (aprova em 40%)</span><span class="vl ${c.marg>=.4?'g':c.marg>0?'a':'r'}">${(c.marg*100).toFixed(1)}%</span></div>
      <div class="dr"><span class="nm">Investimento inicial</span><span class="vl r">${brl(c.invest)}</span></div>
-     <div class="dr"><span class="nm">Retorno do investimento</span><span class="vl b">${c.invest>0&&c.lucro>0?c.payback.toFixed(1)+' meses':'—'}</span></div>
+     <div class="dr"><span class="nm">Payback (devolve o investimento)</span><span class="vl b">${c.invest>0&&c.lucro>0?c.payback.toFixed(1)+' meses':'—'}</span></div>
      <div class="dr tt"><span class="nm">Veredito</span><span class="vl ${c.aprovado?'g':'r'}">${c.aprovado?'✓ Vale a pena':'✕ Não compensa'}</span></div>
-    </div>
-    <button class="addbt" style="color:var(--red);border-color:rgba(248,113,113,.3)" onclick="delViab(${i})">excluir estudo</button>`;
+    </div>`
+    +(()=>{const r=viabRet(c,VIABPER);return `<div class="dtl">
+     <div class="h">Retorno em ${VIABPER} meses</div>
+     <div class="dr"><span class="nm">Lucro acumulado (${brl(c.lucro)} × ${VIABPER})</span><span class="vl g">${brl(r.ret)}</span></div>
+     <div class="dr"><span class="nm">Resultado após devolver o investimento</span><span class="vl ${r.liq>=0?'g':'r'}">${brl(r.liq)}</span></div>
+     <div class="dr tt"><span class="nm">ROI (sobre o investimento)</span><span class="vl ${r.roi==null?'m':r.roi>=0?'g':'r'}">${r.roi!=null?(r.roi*100).toFixed(0)+'%':'sem investimento'}</span></div>
+     <div class="dr"><span class="nm">TIR mensal</span><span class="vl ${r.tirM==null?'m':'b'}">${r.tirM!=null?(r.tirM*100).toFixed(1)+'%':'—'}</span></div>
+     <div class="dr"><span class="nm">TIR ao ano (equivalente)</span><span class="vl ${r.tirA==null?'m':'b'}">${r.tirA!=null?(r.tirA*100).toFixed(0)+'%':'—'}</span></div>
+    </div>`;})()
+    +`<button class="addbt" style="color:var(--red);border-color:rgba(248,113,113,.3)" onclick="delViab(${i})">excluir estudo</button>`;
   }
   h+=`</div>`;
  });
