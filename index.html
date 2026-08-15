@@ -571,15 +571,16 @@ function vFluxo(){
 
 /* ---------- VIABILIDADE ---------- */
 function viabCalc(s){
- const quartos=+s.quartos||0, vq=+s.valorQuarto||0;
- const fat=quartos*vq;
+ const padrao=(+s.padrao>0)?+s.padrao:1, fazer=+s.fazer||0;
  const custo=(+s.aluguel||0)+(+s.condominio||0)+(+s.luz||0)+(+s.internet||0)+(+s.taxas||0);
+ const valorQuarto=custo/padrao;          // (aluguel + despesas) ÷ quartos padrão
+ const fat=valorQuarto*fazer;             // valor por quarto × quartos que dá pra fazer
  const lucro=fat-custo;
  const marg=fat?lucro/fat:0;
- const invest=+s.invest||0;
+ const invest=(+s.invMoveis||0)+(+s.invReforma||0)+(+s.invFinanceiro||0)+(+s.invest||0);
  const payback=lucro>0?invest/lucro:0;
- const aprovado=lucro>0&&marg>=0.30;
- return {fat,custo,lucro,marg,invest,payback,aprovado};
+ const aprovado=marg>=0.40;               // 40% de margem já aprova
+ return {custo,valorQuarto,fat,lucro,marg,invest,payback,aprovado,padrao,fazer};
 }
 function viabMoney(i,key,label){const s=VIAB[i];
  return `<div class="row"><div class="info"><div class="t">${label}</div></div>
@@ -589,35 +590,40 @@ function viabMoney(i,key,label){const s=VIAB[i];
 function vViab(){
  let h=`<h2 class="sec">Viabilidade de apartamentos</h2>
   <button class="bigadd" onclick="addViab()">+  Novo estudo de apartamento</button>`;
- if(!VIAB.length) h+=`<p class="note">Cadastre um apartamento que você está pensando em alugar para sublocar por quartos. Informe o aluguel e os custos fixos, quantos quartos dá para fazer e por quanto aluga cada um — o painel calcula faturamento, lucro, margem e em quantos meses o investimento volta, e diz se está <b>aprovado</b>.</p>`;
+ if(!VIAB.length) h+=`<p class="note">Cadastre um apartamento que você está pensando em alugar para sublocar por quartos. Informe o aluguel e as despesas, quantos quartos ele já tem (padrão) e quantos dá para fazer dividindo. O painel divide o custo pelos quartos padrão para achar o <b>valor por quarto</b>, multiplica pelos quartos a fazer e mostra o lucro. <b>Aprovado</b> a partir de 40% de margem.</p>`;
  VIAB.forEach((s,i)=>{
   const c=viabCalc(s), aberto=!!VIABOPEN[i];
   h+=`<div class="card">
    <div class="aphd" onclick="toggleViab(${i},this)">
     <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${esc(s.nome)||'Sem nome'}<span class="vbadge ${c.aprovado?'ok':'ko'}">${c.aprovado?'APROVADO':'REPROVADO'}</span></div>
-     <div class="sub">${(+s.quartos||0)} quartos · ${brl(s.valorQuarto||0)}/quarto · margem ${(c.marg*100).toFixed(0)}%</div></div>
+     <div class="sub">${c.padrao}→${c.fazer} quartos · ${brl(c.valorQuarto)}/quarto · margem ${(c.marg*100).toFixed(0)}%</div></div>
     <div class="rt"><div class="v ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</div><div class="sub">lucro/mês</div></div></div>`;
   if(aberto){
    h+=`<div class="rows">
      <div class="row"><div class="info"><div class="d">Nome / referência do apartamento</div></div>
       <input class="txt" placeholder="ex.: 302 - Centro" value="${esc(s.nome)}" onchange="setViab(${i},'nome',this.value)"></div>
-     <div class="row"><div class="info"><div class="t">Quartos a fazer</div></div>
-      <input class="val" inputmode="numeric" value="${(+s.quartos||0)||''}" onfocus="this.select()" onchange="setViab(${i},'quartos',Math.max(0,parseInt(this.value)||0))"></div>`
-    +viabMoney(i,'valorQuarto','Valor por quarto')
-    +`<div class="sub-h"><span>Custos fixos mensais</span></div>`
+     <div class="row"><div class="info"><div class="t">Quartos padrão</div><div class="d">quantos quartos o ap já tem</div></div>
+      <input class="val" inputmode="numeric" value="${(+s.padrao||0)||''}" onfocus="this.select()" onchange="setViab(${i},'padrao',Math.max(1,parseInt(this.value)||1))"></div>
+     <div class="row"><div class="info"><div class="t">Quartos a fazer</div><div class="d">quantos dá pra fazer dividindo</div></div>
+      <input class="val" inputmode="numeric" value="${(+s.fazer||0)||''}" onfocus="this.select()" onchange="setViab(${i},'fazer',Math.max(0,parseInt(this.value)||0))"></div>
+     <div class="sub-h"><span>Aluguel + despesas fixas mensais</span></div>`
     +viabMoney(i,'aluguel','Aluguel do apartamento')
     +viabMoney(i,'condominio','Condomínio')
     +viabMoney(i,'luz','Luz')
     +viabMoney(i,'internet','Internet')
     +viabMoney(i,'taxas','Outras taxas')
     +`<div class="sub-h"><span>Investimento inicial (opcional)</span></div>`
-    +viabMoney(i,'invest','Móveis, reforma, montagem')
+    +viabMoney(i,'invMoveis','Móveis e montagem')
+    +viabMoney(i,'invReforma','Reformas')
+    +viabMoney(i,'invFinanceiro','Custos financeiros')
     +`</div>
     <div class="dtl">
-     <div class="dr"><span class="nm">Faturamento (${(+s.quartos||0)} × ${brl(s.valorQuarto||0)})</span><span class="vl g">${brl(c.fat)}</span></div>
-     <div class="dr"><span class="nm">Custo total mensal</span><span class="vl r">${brl(c.custo)}</span></div>
+     <div class="dr"><span class="nm">Custo total mensal (aluguel + despesas)</span><span class="vl r">${brl(c.custo)}</span></div>
+     <div class="dr tt"><span class="nm">Valor por quarto (custo ÷ ${c.padrao})</span><span class="vl b">${brl(c.valorQuarto)}</span></div>
+     <div class="dr"><span class="nm">Faturamento (${brl(c.valorQuarto)} × ${c.fazer})</span><span class="vl g">${brl(c.fat)}</span></div>
      <div class="dr tt"><span class="nm">Lucro mensal</span><span class="vl ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</span></div>
-     <div class="dr"><span class="nm">Margem sobre faturamento</span><span class="vl ${c.marg>=.3?'g':c.marg>0?'a':'r'}">${(c.marg*100).toFixed(1)}%</span></div>
+     <div class="dr"><span class="nm">Margem (mínimo 40%)</span><span class="vl ${c.marg>=.4?'g':c.marg>0?'a':'r'}">${(c.marg*100).toFixed(1)}%</span></div>
+     <div class="dr"><span class="nm">Investimento inicial</span><span class="vl r">${brl(c.invest)}</span></div>
      <div class="dr"><span class="nm">Retorno do investimento</span><span class="vl b">${c.invest>0&&c.lucro>0?c.payback.toFixed(1)+' meses':'—'}</span></div>
      <div class="dr tt"><span class="nm">Veredito</span><span class="vl ${c.aprovado?'g':'r'}">${c.aprovado?'✓ Vale a pena':'✕ Não compensa'}</span></div>
     </div>
@@ -625,11 +631,11 @@ function vViab(){
   }
   h+=`</div>`;
  });
- h+=`<p class="note">Regra do veredito: <b>aprovado</b> quando o lucro é positivo e a margem sobre o faturamento fica em <b>30% ou mais</b> — folga suficiente para vacância e imprevistos. Estes estudos ficam só aqui na aba Viabilidade e sincronizam com seus aparelhos, sem misturar com os apartamentos ativos.</p>`;
+ h+=`<p class="note">Regra do veredito: <b>aprovado</b> quando a margem sobre o faturamento fica em <b>40% ou mais</b>. O valor por quarto é o custo total dividido pelos quartos padrão, e o faturamento é esse valor multiplicado pelos quartos que dá para fazer. Estes estudos ficam só aqui na aba Viabilidade e sincronizam com seus aparelhos, sem misturar com os apartamentos ativos.</p>`;
  return h;
 }
 function addViab(){
- VIAB.push({id:'vb'+Date.now(),nome:'',quartos:3,valorQuarto:0,aluguel:0,condominio:0,luz:0,internet:0,taxas:0,invest:0});
+ VIAB.push({id:'vb'+Date.now(),nome:'',padrao:3,fazer:5,aluguel:0,condominio:0,luz:0,internet:0,taxas:0,invMoveis:0,invReforma:0,invFinanceiro:0});
  VIABOPEN[VIAB.length-1]=true;save();render();
 }
 function delViab(i){if(confirm('Excluir este estudo de viabilidade?')){VIAB.splice(i,1);VIABOPEN={};save();render();}}
