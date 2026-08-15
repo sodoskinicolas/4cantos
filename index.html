@@ -174,6 +174,7 @@ const NOMES={JAN:'Janeiro',FEV:'Fevereiro',MAR:'Março',ABR:'Abril',MAI:'Maio',J
 const KEY='4cantos2026';
 let DATA=null, VIAB=[], MES='AGO', VIEW='resumo', DRESEL='TODOS';
 let OPEN={}, EDIT={}, DREOPEN={}, VIABOPEN={};
+let FOCUS_NEXT=null;
 
 function load(){ try{const s=localStorage.getItem(KEY); if(s) return JSON.parse(s);}catch(e){} return null; }
 function loadViab(){ try{const s=localStorage.getItem('4cantos_viab'); if(s) return JSON.parse(s);}catch(e){} return []; }
@@ -581,7 +582,7 @@ function viabCalc(s){
  const marg=fat?lucro/fat:0;
  const invest=(+s.invMoveis||0)+(+s.invReforma||0)+(+s.invFinanceiro||0)+(+s.invest||0);
  const payback=lucro>0?invest/lucro:0;
- const aprovado=marg>=0.40;               // 40% de margem já aprova
+ const aprovado=marg>=0.40||lucro>=2000;  // 40% de margem OU R$2.000/mês de lucro aprova
  return {custo,valorQuarto,vqAuto,manual,fat,lucro,marg,invest,payback,aprovado,padrao,fazer};
 }
 function viabMoney(i,key,label){const s=VIAB[i];
@@ -630,7 +631,7 @@ function vViab(){
      <div class="dr tt"><span class="nm">Valor por quarto ${c.manual?'(manual)':'(custo ÷ '+c.padrao+')'}</span><span class="vl b">${brl(c.valorQuarto)}</span></div>
      <div class="dr"><span class="nm">Faturamento (${brl(c.valorQuarto)} × ${c.fazer})</span><span class="vl g">${brl(c.fat)}</span></div>
      <div class="dr tt"><span class="nm">Lucro mensal</span><span class="vl ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</span></div>
-     <div class="dr"><span class="nm">Margem (mínimo 40%)</span><span class="vl ${c.marg>=.4?'g':c.marg>0?'a':'r'}">${(c.marg*100).toFixed(1)}%</span></div>
+     <div class="dr"><span class="nm">Margem (aprova em 40%)</span><span class="vl ${c.marg>=.4?'g':c.marg>0?'a':'r'}">${(c.marg*100).toFixed(1)}%</span></div>
      <div class="dr"><span class="nm">Investimento inicial</span><span class="vl r">${brl(c.invest)}</span></div>
      <div class="dr"><span class="nm">Retorno do investimento</span><span class="vl b">${c.invest>0&&c.lucro>0?c.payback.toFixed(1)+' meses':'—'}</span></div>
      <div class="dr tt"><span class="nm">Veredito</span><span class="vl ${c.aprovado?'g':'r'}">${c.aprovado?'✓ Vale a pena':'✕ Não compensa'}</span></div>
@@ -639,7 +640,7 @@ function vViab(){
   }
   h+=`</div>`;
  });
- h+=`<p class="note">Regra do veredito: <b>aprovado</b> quando a margem sobre o faturamento fica em <b>40% ou mais</b>. O valor por quarto é o custo total dividido pelos quartos padrão, e o faturamento é esse valor multiplicado pelos quartos que dá para fazer. Estes estudos ficam só aqui na aba Viabilidade e sincronizam com seus aparelhos, sem misturar com os apartamentos ativos.</p>`;
+ h+=`<p class="note">Regra do veredito: <b>aprovado</b> quando a margem fica em <b>40% ou mais</b> <b>ou</b> o lucro passa de <b>R$ 2.000/mês</b>. O valor por quarto é o custo total dividido pelos quartos padrão, e o faturamento é esse valor multiplicado pelos quartos que dá para fazer. Estes estudos ficam só aqui na aba Viabilidade e sincronizam com seus aparelhos, sem misturar com os apartamentos ativos.</p>`;
  return h;
 }
 function addViab(){
@@ -676,7 +677,28 @@ function render(){
   else el.classList.add('hidden');});
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===VIEW));
  const on=document.querySelector('.mchip.on');if(on)on.scrollIntoView({inline:'center',block:'nearest'});
+ if(FOCUS_NEXT!=null){
+  const fl=[...document.querySelectorAll('#v-'+VIEW+' input')].filter(x=>x.offsetParent!==null);
+  const n=fl[FOCUS_NEXT];FOCUS_NEXT=null;
+  if(n){try{n.focus();if(n.select)n.select();}catch(e){}}
+ }
 }
+/* Enter/Confirmar no teclado pula para o próximo campo */
+document.addEventListener('keydown',e=>{
+ if(e.key!=='Enter'&&e.keyCode!==13)return;
+ const el=e.target;
+ if(!el||el.tagName!=='INPUT')return;
+ const fl=[...document.querySelectorAll('#v-'+VIEW+' input')].filter(x=>x.offsetParent!==null);
+ const idx=fl.indexOf(el);
+ if(idx<0)return;
+ e.preventDefault();
+ FOCUS_NEXT=idx+1;
+ el.blur();                 // dispara o onchange (salva o valor) e re-renderiza
+ if(FOCUS_NEXT!=null){       // se não re-renderizou, foca manualmente
+  const n=fl[idx+1];FOCUS_NEXT=null;
+  if(n){try{n.focus();if(n.select)n.select();}catch(_){}}
+ }
+});
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{VIEW=b.dataset.v;window.scrollTo(0,0);render();});
 render();
 boot();
