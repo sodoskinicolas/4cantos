@@ -573,14 +573,16 @@ function vFluxo(){
 function viabCalc(s){
  const padrao=(+s.padrao>0)?+s.padrao:1, fazer=+s.fazer||0;
  const custo=(+s.aluguel||0)+(+s.condominio||0)+(+s.luz||0)+(+s.internet||0)+(+s.taxas||0);
- const valorQuarto=custo/padrao;          // (aluguel + despesas) ÷ quartos padrão
+ const vqAuto=custo/padrao;               // (aluguel + despesas) ÷ quartos padrão
+ const manual=(+s.valorQuarto>0);
+ const valorQuarto=manual?+s.valorQuarto:vqAuto;  // usa o valor digitado, ou o automático
  const fat=valorQuarto*fazer;             // valor por quarto × quartos que dá pra fazer
  const lucro=fat-custo;
  const marg=fat?lucro/fat:0;
  const invest=(+s.invMoveis||0)+(+s.invReforma||0)+(+s.invFinanceiro||0)+(+s.invest||0);
  const payback=lucro>0?invest/lucro:0;
  const aprovado=marg>=0.40;               // 40% de margem já aprova
- return {custo,valorQuarto,fat,lucro,marg,invest,payback,aprovado,padrao,fazer};
+ return {custo,valorQuarto,vqAuto,manual,fat,lucro,marg,invest,payback,aprovado,padrao,fazer};
 }
 function viabMoney(i,key,label){const s=VIAB[i];
  return `<div class="row"><div class="info"><div class="t">${label}</div></div>
@@ -612,6 +614,12 @@ function vViab(){
     +viabMoney(i,'luz','Luz')
     +viabMoney(i,'internet','Internet')
     +viabMoney(i,'taxas','Outras taxas')
+    +`<div class="sub-h"><span>Valor por quarto</span></div>
+      <div class="row"><div class="info"><div class="t">Valor cobrado por quarto</div>
+       <div class="d">${c.manual?'valor manual · apague para calcular sozinho':'automático: custo ÷ '+c.padrao+' = '+brl(c.vqAuto)}</div></div>
+       <input class="val" inputmode="text" placeholder="${inMoney(c.vqAuto)||'R$ 0,00'}" value="${s.valorQuarto?inMoney(s.valorQuarto):''}"
+         onfocus="this.select()" oninput="valInput(this)" onchange="setViab(${i},'valorQuarto',parseVal(this.value))">
+       <button class="clr" onclick="setViab(${i},'valorQuarto',0)" title="voltar ao automático">×</button></div>`
     +`<div class="sub-h"><span>Investimento inicial (opcional)</span></div>`
     +viabMoney(i,'invMoveis','Móveis e montagem')
     +viabMoney(i,'invReforma','Reformas')
@@ -619,7 +627,7 @@ function vViab(){
     +`</div>
     <div class="dtl">
      <div class="dr"><span class="nm">Custo total mensal (aluguel + despesas)</span><span class="vl r">${brl(c.custo)}</span></div>
-     <div class="dr tt"><span class="nm">Valor por quarto (custo ÷ ${c.padrao})</span><span class="vl b">${brl(c.valorQuarto)}</span></div>
+     <div class="dr tt"><span class="nm">Valor por quarto ${c.manual?'(manual)':'(custo ÷ '+c.padrao+')'}</span><span class="vl b">${brl(c.valorQuarto)}</span></div>
      <div class="dr"><span class="nm">Faturamento (${brl(c.valorQuarto)} × ${c.fazer})</span><span class="vl g">${brl(c.fat)}</span></div>
      <div class="dr tt"><span class="nm">Lucro mensal</span><span class="vl ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</span></div>
      <div class="dr"><span class="nm">Margem (mínimo 40%)</span><span class="vl ${c.marg>=.4?'g':c.marg>0?'a':'r'}">${(c.marg*100).toFixed(1)}%</span></div>
