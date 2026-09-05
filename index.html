@@ -191,7 +191,7 @@ VIAB = loadViab();
 /* ================= NUVEM (Supabase) ================= */
 const CFGK='4cantos_cfg';
 const DEFAULT_CFG={url:'https://rktijrigwvkllofvwhqc.supabase.co', key:'sb_publishable_S9qvuMukZIAmHC04-B4zog_1GsKFN0s'};
-let SB=null, USER=null, tmr=null, ONLINE=false, lastEdit=0;
+let SB=null, USER=null, tmr=null, ONLINE=false, lastEdit=0, AUTHSUB=false, CH=null, CONNECTING=false;
 function cfg(){try{const s=localStorage.getItem(CFGK); if(s) return JSON.parse(s);}catch(e){} return DEFAULT_CFG;}
 function renderKeep(){const y=window.scrollY;render();window.scrollTo(0,y);}
 function setSync(cls,txt){const e=document.getElementById('syncLbl');
@@ -211,10 +211,12 @@ function salvaCfg(){const u=cU.value.trim().replace(/[/]+$/,''),k=cK.value.trim(
  if(!u||!k){cE.textContent='Preencha os dois campos.';return;}
  localStorage.setItem(CFGK,JSON.stringify({url:u,key:k}));boot();}
 
-function telaLogin(erro){ovl(`<h3>4Cantos</h3><p>Entre com seu e-mail e senha para carregar os lançamentos.</p>
+function telaLogin(erro){ if(!document.getElementById('ovl').classList.contains('hidden')&&document.getElementById('lE'))return; /* já está na tela de login */
+ ovl(`<h3>4Cantos</h3><p>Entre com seu e-mail e senha para sincronizar entre o celular e o computador. Seus lançamentos deste aparelho continuam salvos.</p>
  <input id="lE" type="email" placeholder="e-mail" autocapitalize="off"><input id="lS" type="password" placeholder="senha">
  <button onclick="entrar()">Entrar</button>
  <button class="gh" onclick="criar()">Criar conta com este e-mail</button>
+ <button class="gh" onclick="ovl(null);setSync('off','offline · toque em Entrar')">Continuar offline</button>
  <button class="gh" onclick="if(confirm('Desconectar este painel da nuvem?')){localStorage.removeItem(CFGK);location.reload()}">Trocar de projeto</button>
  <p class="err" id="lErr">${erro||''}</p>`);}
 function traduz(m){m=String(m||'');
@@ -251,23 +253,50 @@ async function lib(){
 async function boot(){
  const c=cfg();
  if(!c){setSync('','só neste aparelho');telaConfig();render();return;}
+ render();                                    /* mostra o painel com os dados locais na hora */
  setSync('busy','conectando…');
- if(!await lib()){setSync('off','sem conexão');render();return;}
- SB=window.supabase.createClient(c.url,c.key);
- const {data:{session}}=await SB.auth.getSession();
- if(!session){render();telaLogin();return;}
- USER=session.user;ovl(null);setSync('busy','carregando…');
- const {data,error}=await SB.from('painel').select('dados').eq('user_id',USER.id).maybeSingle();
- if(error){setSync('off','erro: '+error.message);render();return;}
- if(data&&data.dados){applyRemote(data.dados);}
- else{await SB.from('painel').upsert({user_id:USER.id,dados:payload(),atualizado_em:new Date().toISOString()});}
- ONLINE=true;setSync('ok','sincronizado');render();
- SB.channel('painel-'+USER.id).on('postgres_changes',
-  {event:'*',schema:'public',table:'painel',filter:'user_id=eq.'+USER.id},
-  p=>{if(Date.now()-lastEdit<5000)return; /* não sobrescreve edição local recente (evita eco antigo reverter) */
-   if(p.new&&p.new.dados&&JSON.stringify(p.new.dados)!==JSON.stringify(payload())){
-   applyRemote(p.new.dados);renderKeep();
-   setSync('ok','atualizado de outro aparelho');}}).subscribe();
+ if(!await lib()){setSync('off','offline');return;}   /* sem lib: segue offline, sem travar */
+ if(!SB){SB=window.supabase.createClient(c.url,c.key,
+   {auth:{persistSession:true,autoRefreshToken:true,storageKey:'4cantos_auth',detectSessionInUrl:false}});}
+ if(!AUTHSUB){AUTHSUB=true;
+  /* a decisão de login vem daqui (dispara depois que a sessão salva termina de carregar),
+     por isso não há mais o "flash" de tela de login antes da sessão hidratar */
+  SB.auth.onAuthStateChange((ev,session)=>{
+   if(session&&session.user){
+    USER=session.user;               /* mantém a sessão viva também após renovar o token */
+    if(!ONLINE)conectado(session);
+   } else if(ev==='SIGNED_OUT'){
+    ONLINE=false;USER=null;if(CH){try{SB.removeChannel(CH);}catch(e){}CH=null;}
+    setSync('off','desconectado');telaLogin();
+   }
+   /* INITIAL_SESSION sem sessão cai aqui: mostra login uma vez */
+   else if(ev==='INITIAL_SESSION'){setSync('off','desconectado');telaLogin();}
+  });
+ }
+ /* rede de segurança: se por algum motivo o evento não trouxer a sessão, reconecta sozinho */
+ setTimeout(async()=>{ if(!ONLINE&&SB){try{const {data:{session}}=await SB.auth.getSession();
+   if(session&&!ONLINE)conectado(session);}catch(e){}} },1500);
+}
+async function conectado(session){
+ if(CONNECTING)return; if(ONLINE&&USER&&session.user&&USER.id===session.user.id)return;
+ CONNECTING=true;
+ try{
+  USER=session.user;ovl(null);setSync('busy','carregando…');
+  let data,error;
+  try{({data,error}=await SB.from('painel').select('dados').eq('user_id',USER.id).maybeSingle());}
+  catch(e){setSync('off','offline');return;}
+  if(error){setSync('off','offline');return;}
+  if(data&&data.dados){applyRemote(data.dados);}
+  else{try{await SB.from('painel').upsert({user_id:USER.id,dados:payload(),atualizado_em:new Date().toISOString()});}catch(e){}}
+  ONLINE=true;setSync('ok','sincronizado');renderKeep();
+  if(CH){try{SB.removeChannel(CH);}catch(e){}CH=null;}
+  CH=SB.channel('painel-'+USER.id).on('postgres_changes',
+   {event:'*',schema:'public',table:'painel',filter:'user_id=eq.'+USER.id},
+   p=>{if(Date.now()-lastEdit<5000)return; /* não sobrescreve edição local recente */
+    if(p.new&&p.new.dados&&JSON.stringify(p.new.dados)!==JSON.stringify(payload())){
+    applyRemote(p.new.dados);renderKeep();setSync('ok','atualizado de outro aparelho');}});
+  CH.subscribe();
+ }finally{CONNECTING=false;}
 }
 async function puxarNuvem(){
  if(!ONLINE||!SB||!USER)return; if(Date.now()-lastEdit<5000)return;
@@ -275,7 +304,11 @@ async function puxarNuvem(){
   if(data&&data.dados&&JSON.stringify(data.dados)!==JSON.stringify(payload())){
    applyRemote(data.dados);renderKeep();}}catch(e){}
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden) puxarNuvem(); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden)return;
+ if(ONLINE){puxarNuvem();return;}
+ /* voltou pro app sem estar conectado: tenta recuperar a sessão em silêncio, sem jogar login na cara */
+ if(SB){SB.auth.getSession().then(({data:{session}})=>{if(session)conectado(session);}).catch(()=>{});}
+});
 function push(){
  if(!ONLINE||!SB||!USER)return;
  setSync('busy','salvando…');clearTimeout(tmr);
@@ -367,7 +400,7 @@ function vResumo(){
     <div class="sub">lucro · ${(s.marg*100).toFixed(0)}%</div></div></div>
    <div class="bar"><i style="width:${p}%"></i></div>${aberto?apDetalheHTML(ap):''}</div>`;});
  h+=`<div class="tools"><button onclick="exportar()">⬇︎ Backup</button><button onclick="importar()">⬆︎ Restaurar</button>
-  <button onclick="${SB&&USER?'sair()':'telaConfig()'}">${SB&&USER?'⏻ Sair':'☁︎ Nuvem'}</button></div>
+  <button onclick="${USER?'sair()':SB?'telaLogin()':'telaConfig()'}">${USER?'⏻ Sair':SB?'☁︎ Entrar':'☁︎ Nuvem'}</button></div>
  <p class="note">Toque nos valores para editar e nas etiquetas <b>Pago / Pendente</b> para dar baixa. As alterações ficam salvas neste aparelho. Use o backup antes de trocar de celular ou limpar o navegador.</p>`;
  return h;
 }
