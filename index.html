@@ -78,7 +78,7 @@ h2.sec{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--m
 .dtl .dr .vl{font-weight:700;flex:0 0 auto}
 .dtl .dr.tt{font-weight:800;font-size:13px;border-bottom:0;border-top:1px solid var(--line);padding-top:5px;margin-top:1px}
 .sub-h{padding:9px 14px;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--mut);
- font-weight:700;background:var(--card2);border-top:1px solid var(--line);display:flex;justify-content:space-between}
+ font-weight:700;background:var(--card2);border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
 .txt{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);color:var(--tx);font-family:inherit;
  font-size:16px;font-weight:600;padding:9px 10px;border-radius:9px}
 .txt:focus{outline:0;border-color:var(--blu)}
@@ -106,12 +106,36 @@ nav button.on{color:var(--tx)}
 .seg button{flex:0 0 auto;padding:8px 14px;border-radius:10px;background:var(--card);border:1px solid var(--line);
  color:var(--mut);font-size:13px;font-weight:600;font-family:inherit}
 .seg button.on{background:var(--tx);color:#0d0f14;border-color:var(--tx)}
-.chart{display:flex;align-items:flex-end;gap:5px;height:120px;padding:10px 12px 0}
-.chart div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:100%}
-.chart div b{display:block;background:var(--grn);border-radius:3px 3px 0 0;min-height:2px}
-.chart div u{display:block;background:#374151;border-radius:0 0 3px 3px;min-height:2px}
-.chartx{display:flex;gap:5px;padding:5px 12px 12px}
+.chart{display:flex;align-items:flex-end;gap:6px;height:120px;padding:12px 12px 0}
+.chart div{flex:1;display:flex;flex-direction:row;align-items:flex-end;justify-content:center;gap:2px;height:100%}
+.chart div b,.chart div u{display:block;width:45%;max-width:12px;border-radius:3px 3px 0 0;min-height:2px;
+ transform-origin:bottom;animation:grow .45s cubic-bezier(.2,.8,.2,1) both}
+.chart div b{background:var(--grn)}
+.chart div u{background:rgba(248,113,113,.7);animation-delay:.05s}
+.chart div:not(.cur) b,.chart div:not(.cur) u{opacity:.55}
+.chartx{display:flex;gap:6px;padding:5px 12px 6px}
 .chartx span{flex:1;text-align:center;font-size:9px;color:var(--mut)}
+.chartx span.cur{color:var(--tx);font-weight:800}
+.legend{display:flex;gap:14px;justify-content:center;font-size:10.5px;color:var(--mut);padding:0 12px 10px}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.legend .lg{background:var(--grn)}.legend .lr{background:rgba(248,113,113,.7)}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.tnum{font-variant-numeric:tabular-nums}
+table.tnum th,table.tnum td{padding:9px 8px;white-space:nowrap}
+tr.cur td{background:var(--card2)}
+.tfoot{font-size:10px;color:var(--mut);text-align:right;padding:6px 10px 8px;border-top:1px solid var(--line)}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.reveal{animation:reveal .24s cubic-bezier(.2,.8,.2,1) both}
+@keyframes reveal{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.vin{animation:vin .2s ease-out both}
+@keyframes vin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.pill{transition:background-color .2s,border-color .2s,color .2s}
+.pill.pop{animation:pop .3s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{0%{transform:scale(.9)}100%{transform:scale(1)}}
+.pill:active,.bigadd:active,.tools button:active,.seg button:active,.mchip:active,.addbt:active{transform:scale(.97)}
+.aphd:active{background:rgba(255,255,255,.02)}
+.row.done{opacity:.55;transition:opacity .3s}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 .tools{display:flex;gap:8px;margin:14px 0 4px}
 .tools button{flex:1;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--line);
  color:var(--tx);font-size:13px;font-weight:600;font-family:inherit}
@@ -137,6 +161,7 @@ nav button.on{color:var(--tx)}
 .vbadge{font-size:9px;font-weight:800;padding:2px 7px;border-radius:999px;letter-spacing:.4px;margin-left:4px;vertical-align:middle}
 .vbadge.ok{background:rgba(52,211,153,.16);color:var(--grn)}
 .vbadge.ko{background:rgba(248,113,113,.14);color:var(--red)}
+.vbadge.nd{background:var(--card2);color:var(--mut)}
 </style>
 </head>
 <body>
@@ -172,13 +197,21 @@ const SEED = [{"id": "142", "nome": "142 - Marieta", "quartos": [{"quarto": "Qua
 const MESES=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 const NOMES={JAN:'Janeiro',FEV:'Fevereiro',MAR:'Março',ABR:'Abril',MAI:'Maio',JUN:'Junho',JUL:'Julho',AGO:'Agosto',SET:'Setembro',OUT:'Outubro',NOV:'Novembro',DEZ:'Dezembro'};
 const KEY='4cantos2026';
-let DATA=null, VIAB=[], MES='AGO', VIEW='resumo', DRESEL='TODOS';
+/* abre no mês atual (antes ficava preso em agosto). O painel guarda um ano (2026):
+   depois de 2026 abre em dezembro até existir a virada de ano. */
+const MES_HOJE=(()=>{const d=new Date();return d.getFullYear()>2026?'DEZ':d.getFullYear()<2026?'JAN':['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][d.getMonth()];})();
+let DATA=null, VIAB=[], MES=MES_HOJE, VIEW='resumo', DRESEL='TODOS';
 let OPEN={}, EDIT={}, DREOPEN={}, VIABOPEN={}, VIABPER=12;
-let FOCUS_NEXT=null;
+let FOCUS_NEXT=null, ANIM=null, POP=null, LASTVIEW=null, LASTMES=null;
 
 function load(){ try{const s=localStorage.getItem(KEY); if(s) return JSON.parse(s);}catch(e){} return null; }
 function loadViab(){ try{const s=localStorage.getItem('4cantos_viab'); if(s) return JSON.parse(s);}catch(e){} return []; }
-function save(){ lastEdit=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(DATA));localStorage.setItem('4cantos_viab',JSON.stringify(VIAB));}catch(e){} push(); }
+/* "sujo" = existe edição local que ainda não chegou na nuvem (fica gravado no aparelho,
+   sobrevive a fechar/abrir o app). Enquanto estiver sujo, a nuvem NÃO sobrescreve o local. */
+function isDirty(){try{return localStorage.getItem('4cantos_dirty')==='1';}catch(e){return false;}}
+function setDirty(v){try{if(v){localStorage.setItem('4cantos_dirty','1');localStorage.setItem('4cantos_lts',String(Date.now()));}
+ else localStorage.removeItem('4cantos_dirty');}catch(e){}}
+function save(){ lastEdit=Date.now(); try{localStorage.setItem(KEY,JSON.stringify(DATA));localStorage.setItem('4cantos_viab',JSON.stringify(VIAB));}catch(e){} setDirty(true); push(); }
 function payload(){ return {aps:DATA, viab:VIAB}; }
 function applyRemote(d){
  if(Array.isArray(d)){DATA=d;}
@@ -212,13 +245,14 @@ function salvaCfg(){const u=cU.value.trim().replace(/[/]+$/,''),k=cK.value.trim(
  localStorage.setItem(CFGK,JSON.stringify({url:u,key:k}));boot();}
 
 function telaLogin(erro){ if(!document.getElementById('ovl').classList.contains('hidden')&&document.getElementById('lE'))return; /* já está na tela de login */
- ovl(`<h3>4Cantos</h3><p>Entre com seu e-mail e senha para sincronizar entre o celular e o computador. Seus lançamentos deste aparelho continuam salvos.</p>
- <input id="lE" type="email" placeholder="e-mail" autocapitalize="off"><input id="lS" type="password" placeholder="senha">
- <button onclick="entrar()">Entrar</button>
- <button class="gh" onclick="criar()">Criar conta com este e-mail</button>
- <button class="gh" onclick="ovl(null);setSync('off','offline · toque em Entrar')">Continuar offline</button>
- <button class="gh" onclick="if(confirm('Desconectar este painel da nuvem?')){localStorage.removeItem(CFGK);location.reload()}">Trocar de projeto</button>
- <p class="err" id="lErr">${erro||''}</p>`);}
+ /* <form> + autocomplete: o iPhone oferece a senha salva no Chaves do iCloud e o "Ir" do teclado entra */
+ ovl(`<form onsubmit="event.preventDefault();entrar()"><h3>4Cantos</h3><p>Entre com seu e-mail e senha para sincronizar entre o celular e o computador. Seus lançamentos deste aparelho continuam salvos.</p>
+ <input id="lE" name="email" type="email" placeholder="e-mail" autocapitalize="off" autocomplete="username" inputmode="email" enterkeyhint="next" onkeydown="if(event.key==='Enter'){event.preventDefault();lS.focus();}">
+ <input id="lS" name="password" type="password" placeholder="senha" autocomplete="current-password" enterkeyhint="go">
+ <button type="submit">Entrar</button>
+ <button type="button" class="gh" onclick="criar()">Criar conta com este e-mail</button>
+ <button type="button" class="gh" onclick="ovl(null);setSync('off','offline · toque em Entrar')">Continuar offline</button>
+ <p class="err" id="lErr">${erro||''}</p></form>`);}
 function traduz(m){m=String(m||'');
  if(/invalid login|invalid credentials/i.test(m))return 'E-mail ou senha incorretos. Se ainda não tem conta, toque em “Criar conta”.';
  if(/already registered|already been registered|user already|already exists/i.test(m))return 'Este e-mail já tem conta. Digite a senha e toque em “Entrar”.';
@@ -232,13 +266,16 @@ function valida(){const e=(lE.value||'').trim(), s=lS.value||'';
  if(!e||e.indexOf('@')<0){lErr.textContent='Digite um e-mail válido.';return null;}
  if(s.length<6){lErr.textContent='A senha precisa ter ao menos 6 caracteres.';return null;}
  return {email:e,password:s};}
+/* depois de entrar, o evento SIGNED_IN conecta sozinho; o setTimeout é só uma rede de segurança
+   (antes chamava boot() de novo, o que deixava o status travado em "conectando…") */
 async function entrar(){const v=valida(); if(!v)return; lErr.textContent='Entrando…';
- const {error}=await SB.auth.signInWithPassword(v);
- if(error){lErr.textContent=traduz(error.message);return;} boot();}
+ const {data,error}=await SB.auth.signInWithPassword(v);
+ if(error){lErr.textContent=traduz(error.message);return;}
+ if(data&&data.session)setTimeout(()=>conectado(data.session),0);}
 async function criar(){const v=valida(); if(!v)return; lErr.textContent='Criando conta…';
  const {data,error}=await SB.auth.signUp(v);
  if(error){lErr.textContent=traduz(error.message);return;}
- if(data&&data.session){boot();return;}
+ if(data&&data.session){setTimeout(()=>conectado(data.session),0);return;}
  lErr.textContent='Conta criada! Agora digite a senha e toque em “Entrar”.';}
 async function sair(){if(SB){await SB.auth.signOut();}location.reload();}
 
@@ -264,7 +301,9 @@ async function boot(){
   SB.auth.onAuthStateChange((ev,session)=>{
    if(session&&session.user){
     USER=session.user;               /* mantém a sessão viva também após renovar o token */
-    if(!ONLINE)conectado(session);
+    /* a doc do Supabase pede para não chamar o banco dentro deste callback (risco de travar):
+       por isso a conexão é disparada logo depois, fora dele */
+    if(!ONLINE)setTimeout(()=>conectado(session),0);
    } else if(ev==='SIGNED_OUT'){
     ONLINE=false;USER=null;if(CH){try{SB.removeChannel(CH);}catch(e){}CH=null;}
     setSync('off','desconectado');telaLogin();
@@ -282,24 +321,45 @@ async function conectado(session){
  CONNECTING=true;
  try{
   USER=session.user;ovl(null);setSync('busy','carregando…');
+  const t0=Date.now();
   let data,error;
-  try{({data,error}=await SB.from('painel').select('dados').eq('user_id',USER.id).maybeSingle());}
+  try{({data,error}=await SB.from('painel').select('dados,atualizado_em').eq('user_id',USER.id).maybeSingle());}
   catch(e){setSync('off','offline');return;}
   if(error){setSync('off','offline');return;}
-  if(data&&data.dados){applyRemote(data.dados);}
-  else{try{await SB.from('painel').upsert({user_id:USER.id,dados:payload(),atualizado_em:new Date().toISOString()});}catch(e){}}
-  ONLINE=true;setSync('ok','sincronizado');renderKeep();
+  /* quem vence: edição local pendente ou a nuvem?
+     - local vence se há edição não enviada, este aparelho já sincronizou com ESTA conta antes
+       e a edição local é mais recente que a última gravação da nuvem;
+     - senão vence a nuvem — mas uma cópia do local fica guardada (4cantos_conflito), nada se perde.
+     A checagem de "já sincronizou com esta conta" impede que um aparelho novo, com os dados de
+     exemplo, apague os dados reais da nuvem. */
+  let uid=null,lts=0;try{uid=localStorage.getItem('4cantos_uid');lts=+localStorage.getItem('4cantos_lts')||0;}catch(e){}
+  const rts=data&&data.atualizado_em?Date.parse(data.atualizado_em)||0:0;
+  let enviar=false;
+  if(!(data&&data.dados)) enviar=true;                                  /* nuvem vazia: primeira vez */
+  else if(isDirty()&&uid===USER.id&&lts>rts) enviar=true;                /* edição offline mais nova */
+  if(enviar){
+   const {error:e2}=await SB.from('painel').upsert({user_id:USER.id,dados:payload(),atualizado_em:new Date().toISOString()});
+   if(e2){setSync('off','falha ao salvar');return;}
+   if(lastEdit<=t0)setDirty(false);
+  } else {
+   if(isDirty()){try{localStorage.setItem('4cantos_conflito',JSON.stringify({em:new Date().toISOString(),dados:payload()}));}catch(e){}}
+   applyRemote(data.dados);setDirty(false);
+  }
+  try{localStorage.setItem('4cantos_uid',USER.id);}catch(e){}
+  ONLINE=true;setSync('ok',enviar&&data&&data.dados?'edições offline enviadas':'sincronizado');renderKeep();
   if(CH){try{SB.removeChannel(CH);}catch(e){}CH=null;}
   CH=SB.channel('painel-'+USER.id).on('postgres_changes',
    {event:'*',schema:'public',table:'painel',filter:'user_id=eq.'+USER.id},
-   p=>{if(Date.now()-lastEdit<5000)return; /* não sobrescreve edição local recente */
+   p=>{if(Date.now()-lastEdit<5000||isDirty())return; /* não sobrescreve edição local recente/pendente */
     if(p.new&&p.new.dados&&JSON.stringify(p.new.dados)!==JSON.stringify(payload())){
     applyRemote(p.new.dados);renderKeep();setSync('ok','atualizado de outro aparelho');}});
   CH.subscribe();
  }finally{CONNECTING=false;}
 }
 async function puxarNuvem(){
- if(!ONLINE||!SB||!USER)return; if(Date.now()-lastEdit<5000)return;
+ if(!ONLINE||!SB||!USER)return;
+ if(isDirty()){push();return;}          /* tem edição pendente: envia em vez de puxar */
+ if(Date.now()-lastEdit<5000)return;
  try{const {data}=await SB.from('painel').select('dados').eq('user_id',USER.id).maybeSingle();
   if(data&&data.dados&&JSON.stringify(data.dados)!==JSON.stringify(payload())){
    applyRemote(data.dados);renderKeep();}}catch(e){}
@@ -309,19 +369,33 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden)return;
  /* voltou pro app sem estar conectado: tenta recuperar a sessão em silêncio, sem jogar login na cara */
  if(SB){SB.auth.getSession().then(({data:{session}})=>{if(session)conectado(session);}).catch(()=>{});}
 });
+let retryT=null;
 function push(){
  if(!ONLINE||!SB||!USER)return;
- setSync('busy','salvando…');clearTimeout(tmr);
+ setSync('busy','salvando…');clearTimeout(tmr);clearTimeout(retryT);
  tmr=setTimeout(async()=>{
-  const {error}=await SB.from('painel').upsert({user_id:USER.id,dados:payload(),atualizado_em:new Date().toISOString()});
-  setSync(error?'off':'ok',error?'falha ao salvar':'sincronizado');
+  const t0=Date.now();let error=null;
+  try{({error}=await SB.from('painel').upsert({user_id:USER.id,dados:payload(),atualizado_em:new Date().toISOString()}));}
+  catch(e){error=e;}
+  if(error){setSync('off','sem internet · tentando de novo');retryT=setTimeout(push,15000);return;}
+  if(lastEdit<=t0)setDirty(false);
+  setSync('ok','sincronizado');
  },700);
 }
+/* internet voltou: envia o que ficou pendente (ou reconecta, se tinha caído a sessão) */
+window.addEventListener('online',()=>{
+ if(ONLINE){if(isDirty())push();else puxarNuvem();}
+ else if(SB){SB.auth.getSession().then(({data:{session}})=>{if(session)conectado(session);}).catch(()=>{});}
+});
 
 /* ---------- dinheiro ---------- */
 const brl=n=>(n<0?'-':'')+'R$ '+Math.abs(n).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
 const brl2=n=>(n<0?'-':'')+'R$ '+Math.abs(Math.round(n*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const inMoney=n=>n?brl2(n):'';
+/* números no padrão brasileiro: 40,4% · 7,5 meses */
+const pc=(x,d)=>(x*100).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const n1=x=>x.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const num=n=>(n<0?'−':'')+Math.abs(Math.round(n)).toLocaleString('pt-BR');
 function maskEl(el){
  const neg=el.value.indexOf('-')>=0;
  const d=el.value.replace(/\D/g,'');
@@ -340,19 +414,20 @@ function evalExpr(e){
  if(!/^[0-9+\-*/().]+$/.test(e))return NaN;
  try{const r=Function('"use strict";return('+e+')')();return (typeof r==='number'&&isFinite(r))?r:NaN;}catch(_){return NaN;}
 }
-function parseNumBR(s){ // interpreta como REAIS: "1.850,50" -> 1850.5 ; "850" -> 850
- s=String(s); const neg=s.trim().indexOf('-')===0;
- s=s.replace(/R\$/g,'').replace(/\s/g,'').replace(/\./g,'').replace(/,/g,'.').replace(/[^0-9.]/g,'');
- const n=parseFloat(s); if(isNaN(n))return 0; return neg?-Math.abs(n):n;
+/* normaliza UM número digitado, em reais:
+   "1.850,50"→1850.50 · "1850,5"→1850.5 · "1.850"→1850 (ponto de milhar)
+   "1650.50"/"1650.5"→1650.50 (ponto decimal, como no teclado do computador — antes virava 165050) */
+function normNum(t){
+ if(t.indexOf(',')>=0) return t.replace(/\./g,'').replace(/,/g,'.');
+ if(/^\d+\.\d{1,2}$/.test(t)) return t;
+ return t.replace(/\./g,'');
 }
+function parseNumBR(s){ return parseVal(s); }
 function parseVal(s){
- s=String(s);
- if(isExpr(s)){
-  const e=s.replace(/R\$/g,'').replace(/\s/g,'').replace(/\./g,'').replace(/,/g,'.');
-  const r=evalExpr(e);
-  return isNaN(r)?0:Math.round(r*100)/100;
- }
- return Math.round(parseNumBR(s)*100)/100;
+ const e=String(s).replace(/R\$/g,'').replace(/\s/g,'').replace(/[\d.,]+/g,normNum);
+ if(!e)return 0;
+ const r=evalExpr(e);
+ return isNaN(r)?0:Math.round(r*100)/100;
 }
 function valInput(el){ el.value=el.value.replace(/[^0-9+\-*/().,\sR$]/g,''); }
 function negToggle(el){ // permite lançar valor negativo (crédito/estorno)
@@ -382,11 +457,11 @@ function vResumo(){
  <div class="kpis">
   <div class="kpi big"><div class="l">Lucro líquido do mês</div>
    <div class="v ${t.lucro>=0?'g':'r'}">${brl(t.lucro)}</div>
-   <div class="s">margem ${(t.marg*100).toFixed(1)}% · caixa realizado ${brl(t.caixa)}</div></div>
+   <div class="s">margem ${pc(t.marg,1)}% · caixa realizado ${brl(t.caixa)}</div></div>
   <div class="kpi"><div class="l">Recebido</div><div class="v g">${brl(t.recPg)}</div>
    <div class="s">de ${brl(t.rec)} previsto</div></div>
   <div class="kpi"><div class="l">A receber</div><div class="v ${t.recAb>0?'a':'m'}">${brl(t.recAb)}</div>
-   <div class="s">${t.rec?((t.recPg/t.rec)*100).toFixed(0):0}% da receita ok</div></div>
+   <div class="s">${t.rec?pc(t.recPg/t.rec,0):0}% da receita ok</div></div>
   <div class="kpi"><div class="l">Pago</div><div class="v r">${brl(t.cusPg)}</div>
    <div class="s">de ${brl(t.cus)} de custo</div></div>
   <div class="kpi"><div class="l">A pagar</div><div class="v ${t.cusAb>0?'a':'m'}">${brl(t.cusAb)}</div>
@@ -395,13 +470,13 @@ function vResumo(){
  <h2 class="sec">Por apartamento · toque para ver a DRE</h2>`;
  DATA.forEach((ap,ai)=>{const s=apStats(ap,MES);const p=s.rec?Math.min(100,s.recPg/s.rec*100):0;const aberto=!!DREOPEN[ai];
   h+=`<div class="card"><div class="aphd" onclick="toggleDre(${ai},this)">
-   <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${ap.nome}</div><div class="sub">${s.ocup}/${ap.quartos.length} quartos · caixa ${brl(s.caixa)}${s.recAb>0?' · a receber '+brl(s.recAb):''}</div></div>
+   <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${esc(ap.nome)}</div><div class="sub">${s.ocup}/${ap.quartos.length} quartos · caixa ${brl(s.caixa)}${s.recAb>0?' · a receber '+brl(s.recAb):''}</div></div>
    <div class="rt"><div class="v ${s.lucro>=0?'g':'r'}">${brl(s.lucro)}</div>
-    <div class="sub">lucro · ${(s.marg*100).toFixed(0)}%</div></div></div>
+    <div class="sub">lucro · ${pc(s.marg,0)}%</div></div></div>
    <div class="bar"><i style="width:${p}%"></i></div>${aberto?apDetalheHTML(ap):''}</div>`;});
  h+=`<div class="tools"><button onclick="exportar()">⬇︎ Backup</button><button onclick="importar()">⬆︎ Restaurar</button>
   <button onclick="${USER?'sair()':SB?'telaLogin()':'telaConfig()'}">${USER?'⏻ Sair':SB?'☁︎ Entrar':'☁︎ Nuvem'}</button></div>
- <p class="note">Toque nos valores para editar e nas etiquetas <b>Pago / Pendente</b> para dar baixa. As alterações ficam salvas neste aparelho. Use o backup antes de trocar de celular ou limpar o navegador.</p>`;
+ <p class="note">Toque em um apartamento para ver a DRE dele. Para lançar valores e dar baixa, use a aba <b>Lançar</b>. Tudo fica salvo neste aparelho e sincroniza com a nuvem quando você está conectado.</p>`;
  return h;
 }
 
@@ -415,7 +490,7 @@ function vLanc(){
   const s=apStats(ap,MES), aberto=!!OPEN[ai], editando=!!EDIT[ai];
   h+=`<div class="card">
    <div class="aphd" onclick="toggleOpen(${ai},this)">
-    <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${ap.nome}</div>
+    <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${esc(ap.nome)}</div>
      <div class="sub">${s.ocup}/${ap.quartos.length} quartos · receb. ${brl(s.recPg)} · pago ${brl(s.cusPg)}</div></div>
     <div class="rt"><div class="v ${s.caixa>=0?'g':'r'}">${brl(s.caixa)}</div><div class="sub">caixa</div></div></div>`;
   if(aberto){
@@ -445,14 +520,14 @@ function vLanc(){
       <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(c.v)}" onfocus="this.select()"
         oninput="valInput(this)" onchange="setV('q',${ai},${qi},this.value)">
       <button class="clr" onclick="clr('q',${ai},${qi})" title="apagar">×</button>
-      <div class="pill ${st==='ok'?'ok':st==='pa'?'pa':''}" onclick="cyclePg('q',${ai},${qi})">${st==='ok'?'RECEBIDO':st==='pa'?'PARCIAL':'PENDENTE'}</div></div>`;});
+      <div class="pill ${st==='ok'?'ok':st==='pa'?'pa':''}${POP==='q'+ai+'-'+qi?' pop':''}" onclick="cyclePg('q',${ai},${qi})">${st==='ok'?'RECEBIDO':st==='pa'?'PARCIAL':'PENDENTE'}</div></div>`;});
     h+=`</div><div class="sub-h"><span>Despesas</span></div><div class="rows">`;
     ap.custos.forEach((x,ci)=>{const c=x.meses[MES];const st=statusPg(c);
      h+=`<div class="row"><div class="info"><div class="t">${esc(x.nome)}</div>${st==='pa'?'<div class="d">pago '+brl(pagoVal(c))+'</div>':''}</div>
       <input class="val" inputmode="text" placeholder="R$ 0,00" value="${inMoney(c.v)}" onfocus="this.select()"
         oninput="valInput(this)" onchange="setV('c',${ai},${ci},this.value)">
       <button class="clr" onclick="clr('c',${ai},${ci})" title="apagar">×</button>
-      <div class="pill ${st==='ok'?'ko':st==='pa'?'pa':''}" onclick="cyclePg('c',${ai},${ci})">${st==='ok'?'PAGO':st==='pa'?'PARCIAL':'PENDENTE'}</div></div>`;});
+      <div class="pill ${st==='ok'?'ko':st==='pa'?'pa':''}${POP==='c'+ai+'-'+ci?' pop':''}" onclick="cyclePg('c',${ai},${ci})">${st==='ok'?'PAGO':st==='pa'?'PARCIAL':'PENDENTE'}</div></div>`;});
     h+=`</div>`;
    }
   }
@@ -464,9 +539,11 @@ const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function toggleCard(ai,el,which){
  let topBefore=null; const card=(el&&el.closest)?el.closest('.card'):null;
  if(card)topBefore=card.getBoundingClientRect().top;
- if(which==='dre')DREOPEN[ai]=!DREOPEN[ai];
- else if(which==='viab')VIABOPEN[ai]=!VIABOPEN[ai];
- else{OPEN[ai]=!OPEN[ai];if(!OPEN[ai])EDIT[ai]=false;}
+ let aberto;
+ if(which==='dre')aberto=DREOPEN[ai]=!DREOPEN[ai];
+ else if(which==='viab')aberto=VIABOPEN[ai]=!VIABOPEN[ai];
+ else{aberto=OPEN[ai]=!OPEN[ai];if(!OPEN[ai])EDIT[ai]=false;}
+ ANIM={view:VIEW,i:ai,open:aberto};      /* render anima só este card (seta + conteúdo) */
  render();
  if(topBefore!=null){const nc=document.querySelectorAll('#v-'+VIEW+' .card')[ai];
   if(nc)window.scrollBy(0,Math.round(nc.getBoundingClientRect().top-topBefore));}
@@ -476,6 +553,7 @@ function toggleDre(ai,el){toggleCard(ai,el,'dre');}
 function toggleViab(i,el){toggleCard(i,el,'viab');}
 function toggleEdit(ai){EDIT[ai]=!EDIT[ai];render();}
 function cyclePg(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];const c=o.meses[MES];
+ POP=t+ai+'-'+i;                          /* etiqueta que mudou ganha um "pulo" visual */
  const st=statusPg(c);
  if(st==='nao'){c.pago=true;c.pg=0;}
  else if(st==='ok'){
@@ -491,7 +569,8 @@ function setV(t,ai,i,v){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
  o.meses[MES].v=parseVal(v);save();renderKeep();}
 function baixaPend(t,ai,i,m,el){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
  o.meses[m].pago=true;o.meses[m].pg=0;save();
- if(el){el.classList.add('ok');el.textContent=t==='q'?'✓ RECEBIDO':'✓ PAGO';el.onclick=null;el.style.opacity='.75';}
+ if(el){el.classList.add('ok','pop');el.textContent=t==='q'?'✓ RECEBIDO':'✓ PAGO';el.onclick=null;
+  const row=el.closest('.row');if(row)row.classList.add('done');}
  if(navigator.vibrate)navigator.vibrate(8);}
 function clr(t,ai,i){const o=t==='q'?DATA[ai].quartos[i]:DATA[ai].custos[i];
  o.meses[MES]={v:0,pago:false,pg:0};save();renderKeep();}
@@ -524,7 +603,9 @@ function addAp(){
  ['Aluguel','Condominio','Luz','Internet','Reformas'].forEach(c=>ap.custos.push({nome:c,meses:blank()}));
  DATA.push(ap);OPEN[DATA.length-1]=true;EDIT[DATA.length-1]=true;save();render();
 }
-function delAp(ai){if(confirm('Excluir '+DATA[ai].nome+' e todo o histórico dele?')){DATA.splice(ai,1);OPEN={};EDIT={};save();render();}}
+function delAp(ai){if(confirm('Excluir '+DATA[ai].nome+' e todo o histórico dele?')){
+ if(DATA[ai].id===DRESEL)DRESEL='TODOS';           /* a DRE não fica apontando para um ap que não existe mais */
+ DATA.splice(ai,1);OPEN={};EDIT={};DREOPEN={};save();render();}}
 
 /* ---------- Detalhe por apartamento (usado no Resumo, sanfona) ---------- */
 function apDetalheHTML(ap){
@@ -562,12 +643,14 @@ function vDre(){
  `</div><div class="card"><table>
   <tr><th>Linha</th><th>${NOMES[MES]}</th><th>Acum. ano</th></tr>
   <tr><td>Receita bruta (aluguéis)</td><td class="g">${brl(mes.receita)}</td><td class="g">${brl(acc.receita)}</td></tr>`;
+ /* despesa negativa = crédito/estorno: mostra "+R$ 130" em verde em vez de "(−) … -R$ 130" */
+ const dv=v=>v<0?`<span class="g">+${brl(-v)}</span>`:brl(v);
  cats.forEach(k=>{
-  h+=`<tr class="sb"><td>(−) ${esc(k)}</td><td>${brl(mes.linhas[k]||0)}</td><td>${brl(acc.linhas[k]||0)}</td></tr>`;});
+  h+=`<tr class="sb"><td>(−) ${esc(k)}</td><td>${dv(mes.linhas[k]||0)}</td><td>${dv(acc.linhas[k]||0)}</td></tr>`;});
  h+=`<tr><td><b>Custo total</b></td><td class="r">${brl(mes.custo)}</td><td class="r">${brl(acc.custo)}</td></tr>
   <tr class="tot"><td>Lucro líquido</td><td class="${mes.lucro>=0?'g':'r'}">${brl(mes.lucro)}</td>
    <td class="${acc.lucro>=0?'g':'r'}">${brl(acc.lucro)}</td></tr>
-  <tr class="sb"><td>Margem líquida</td><td>${(mes.marg*100).toFixed(1)}%</td><td>${(acc.marg*100).toFixed(1)}%</td></tr>
+  <tr class="sb"><td>Margem líquida</td><td>${pc(mes.marg,1)}%</td><td>${pc(acc.marg,1)}%</td></tr>
   </table></div>
   <p class="note">DRE por competência: considera tudo que foi lançado no mês, pago ou não. O regime de caixa (o que entrou e saiu de fato) está na aba Fluxo. Para ver cada aluguel e despesa, toque no apartamento na aba Resumo.</p>`;
  return h;
@@ -579,17 +662,21 @@ function vFluxo(){
  const ativos=rows.filter(r=>r.rec>0||r.cus>0);
  const max=Math.max(1,...ativos.map(r=>Math.max(r.recPg,r.cusPg)));
  let acc=0;
+ /* gráfico: barras lado a lado (entrou × saiu) em vez de empilhadas; tabela sem "R$" em cada
+    célula (o título diz R$) para caber em celular pequeno sem cortar a coluna Acum. */
  let h=`<h2 class="sec">Fluxo de caixa · realizado</h2>
   <div class="card"><div class="chart">`+
-  ativos.map(r=>`<div><b style="height:${r.recPg/max*55}%"></b><u style="height:${r.cusPg/max*55}%"></u></div>`).join('')+
-  `</div><div class="chartx">`+ativos.map(r=>`<span>${r.m}</span>`).join('')+`</div>
-  <table><tr><th>Mês</th><th>Entrou</th><th>Saiu</th><th>Saldo</th><th>Acum.</th></tr>`;
+  ativos.map(r=>`<div class="${r.m===MES?'cur':''}"><b style="height:${Math.max(0,r.recPg)/max*100}%"></b><u style="height:${Math.max(0,r.cusPg)/max*100}%"></u></div>`).join('')+
+  `</div><div class="chartx">`+ativos.map(r=>`<span class="${r.m===MES?'cur':''}">${r.m}</span>`).join('')+`</div>
+  <div class="legend"><span><i class="lg"></i>entrou</span><span><i class="lr"></i>saiu</span></div>
+  <div class="tscroll"><table class="tnum"><tr><th>Mês</th><th>Entrou</th><th>Saiu</th><th>Saldo</th><th>Acum.</th></tr>`;
  ativos.forEach(r=>{acc+=r.caixa;
-  h+=`<tr${r.m===MES?' style="background:var(--card2)"':''}><td>${r.m}</td><td class="g">${brl(r.recPg)}</td>
-   <td class="r">${brl(r.cusPg)}</td><td class="${r.caixa>=0?'g':'r'}">${brl(r.caixa)}</td>
-   <td class="b">${brl(acc)}</td></tr>`;});
- h+=`<tr class="tot"><td>Total</td><td class="g">${brl(ativos.reduce((s,r)=>s+r.recPg,0))}</td>
-  <td class="r">${brl(ativos.reduce((s,r)=>s+r.cusPg,0))}</td><td class="${acc>=0?'g':'r'}">${brl(acc)}</td><td></td></tr></table></div>`;
+  h+=`<tr${r.m===MES?' class="cur"':''}><td>${r.m}</td><td class="g">${num(r.recPg)}</td>
+   <td class="r">${num(r.cusPg)}</td><td class="${r.caixa>=0?'g':'r'}">${num(r.caixa)}</td>
+   <td class="b">${num(acc)}</td></tr>`;});
+ h+=`<tr class="tot"><td>Total</td><td class="g">${num(ativos.reduce((s,r)=>s+r.recPg,0))}</td>
+  <td class="r">${num(ativos.reduce((s,r)=>s+r.cusPg,0))}</td><td class="${acc>=0?'g':'r'}">${num(acc)}</td><td></td></tr></table></div>
+  <div class="tfoot">valores em R$</div></div>`;
  const pend=[];
  DATA.forEach((ap,ai)=>MESES.slice(0,MESES.indexOf(MES)+1).forEach(m=>{
   ap.quartos.forEach((q,qi)=>{const c=q.meses[m];const falta=c.v-pagoVal(c);if(falta>0.005)pend.push({t:'q',ai,i:qi,rec:true,ap:ap.nome,m,n:q.inquilino||q.quarto,v:falta});});
@@ -649,13 +736,13 @@ function vViab(){
    <button class="${VIABPER===12?'on':''}" onclick="VIABPER=12;render()">12 meses</button>
    <button class="${VIABPER===30?'on':''}" onclick="VIABPER=30;render()">30 meses</button>
   </div>`;
- if(!VIAB.length) h+=`<p class="note">Cadastre um apartamento que você está pensando em alugar para sublocar por quartos. Informe o aluguel e as despesas, quantos quartos ele já tem (padrão) e quantos dá para fazer dividindo. O painel divide o custo pelos quartos padrão para achar o <b>valor por quarto</b>, multiplica pelos quartos a fazer e mostra o lucro. <b>Aprovado</b> a partir de 40% de margem.</p>`;
+ if(!VIAB.length) h+=`<p class="note">Cadastre um apartamento que você está pensando em alugar para sublocar por quartos. Informe o aluguel e as despesas, quantos quartos ele já tem (padrão) e quantos dá para fazer dividindo. O painel divide o custo pelos quartos padrão para achar o <b>valor por quarto</b>, multiplica pelos quartos a fazer e mostra o lucro. <b>Aprovado</b> com margem de 40% ou mais, ou lucro acima de R$ 2.000/mês.</p>`;
  VIAB.forEach((s,i)=>{
   const c=viabCalc(s), aberto=!!VIABOPEN[i];
   h+=`<div class="card">
    <div class="aphd" onclick="toggleViab(${i},this)">
-    <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${esc(s.nome)||'Sem nome'}<span class="vbadge ${c.aprovado?'ok':'ko'}">${c.aprovado?'APROVADO':'REPROVADO'}</span></div>
-     <div class="sub">${c.padrao}→${c.fazer} quartos · ${brl(c.valorQuarto)}/quarto · margem ${(c.marg*100).toFixed(0)}%</div></div>
+    <div style="min-width:0"><div class="n"><span class="chev ${aberto?'up':''}"></span>${esc(s.nome)||'Sem nome'}${c.custo>0?`<span class="vbadge ${c.aprovado?'ok':'ko'}">${c.aprovado?'APROVADO':'REPROVADO'}</span>`:'<span class="vbadge nd">A PREENCHER</span>'}</div>
+     <div class="sub">${c.custo>0?`${c.padrao}→${c.fazer} quartos · ${brl(c.valorQuarto)}/quarto · margem ${pc(c.marg,0)}%`:'informe o aluguel e as despesas'}</div></div>
     <div class="rt"><div class="v ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</div><div class="sub">lucro/mês</div></div></div>`;
   if(aberto){
    h+=`<div class="rows">
@@ -687,18 +774,18 @@ function vViab(){
      <div class="dr tt"><span class="nm">Valor por quarto ${c.manual?'(manual)':'(custo ÷ '+c.padrao+')'}</span><span class="vl b">${brl(c.valorQuarto)}</span></div>
      <div class="dr"><span class="nm">Faturamento (${brl(c.valorQuarto)} × ${c.fazer})</span><span class="vl g">${brl(c.fat)}</span></div>
      <div class="dr tt"><span class="nm">Lucro mensal</span><span class="vl ${c.lucro>=0?'g':'r'}">${brl(c.lucro)}</span></div>
-     <div class="dr"><span class="nm">Margem (aprova em 40%)</span><span class="vl ${c.marg>=.4?'g':c.marg>0?'a':'r'}">${(c.marg*100).toFixed(1)}%</span></div>
+     <div class="dr"><span class="nm">Margem (aprova em 40%)</span><span class="vl ${c.marg>=.4?'g':c.marg>0?'a':'r'}">${pc(c.marg,1)}%</span></div>
      <div class="dr"><span class="nm">Investimento inicial</span><span class="vl r">${brl(c.invest)}</span></div>
-     <div class="dr"><span class="nm">Payback (devolve o investimento)</span><span class="vl b">${c.invest>0&&c.lucro>0?c.payback.toFixed(1)+' meses':'—'}</span></div>
-     <div class="dr tt"><span class="nm">Veredito</span><span class="vl ${c.aprovado?'g':'r'}">${c.aprovado?'✓ Vale a pena':'✕ Não compensa'}</span></div>
+     <div class="dr"><span class="nm">Payback (devolve o investimento)</span><span class="vl b">${c.invest>0&&c.lucro>0?n1(c.payback)+' meses':'—'}</span></div>
+     <div class="dr tt"><span class="nm">Veredito</span><span class="vl ${c.custo<=0?'m':c.aprovado?'g':'r'}">${c.custo<=0?'aguardando dados':c.aprovado?'✓ Vale a pena':'✕ Não compensa'}</span></div>
     </div>`
     +(()=>{const r=viabRet(c,VIABPER);return `<div class="dtl">
      <div class="h">Retorno em ${VIABPER} meses</div>
      <div class="dr"><span class="nm">Lucro acumulado (${brl(c.lucro)} × ${VIABPER})</span><span class="vl g">${brl(r.ret)}</span></div>
      <div class="dr"><span class="nm">Resultado após devolver o investimento</span><span class="vl ${r.liq>=0?'g':'r'}">${brl(r.liq)}</span></div>
-     <div class="dr tt"><span class="nm">ROI (sobre o investimento)</span><span class="vl ${r.roi==null?'m':r.roi>=0?'g':'r'}">${r.roi!=null?(r.roi*100).toFixed(0)+'%':'sem investimento'}</span></div>
-     <div class="dr"><span class="nm">TIR mensal</span><span class="vl ${r.tirM==null?'m':'b'}">${r.tirM!=null?(r.tirM*100).toFixed(1)+'%':'—'}</span></div>
-     <div class="dr"><span class="nm">TIR ao ano (equivalente)</span><span class="vl ${r.tirA==null?'m':'b'}">${r.tirA!=null?(r.tirA*100).toFixed(0)+'%':'—'}</span></div>
+     <div class="dr tt"><span class="nm">ROI (sobre o investimento)</span><span class="vl ${r.roi==null?'m':r.roi>=0?'g':'r'}">${r.roi!=null?pc(r.roi,0)+'%':'sem investimento'}</span></div>
+     <div class="dr"><span class="nm">TIR mensal</span><span class="vl ${r.tirM==null?'m':'b'}">${r.tirM!=null?pc(r.tirM,1)+'%':'—'}</span></div>
+     <div class="dr"><span class="nm">TIR ao ano (equivalente)</span><span class="vl ${r.tirA==null?'m':'b'}">${r.tirA!=null?pc(r.tirA,0)+'%':'—'}</span></div>
     </div>`;})()
     +`<button class="addbt" style="color:var(--red);border-color:rgba(248,113,113,.3)" onclick="delViab(${i})">excluir estudo</button>`;
   }
@@ -722,7 +809,9 @@ function exportar(){
 function importar(){
  const i=document.createElement('input');i.type='file';i.accept='.json';
  i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{applyRemote(JSON.parse(r.result));OPEN={};EDIT={};save();render();}catch(err){alert('Arquivo inválido');}};
+  r.onload=()=>{let d;try{d=JSON.parse(r.result);}catch(err){alert('Arquivo inválido');return;}
+   if(!confirm('Restaurar este backup? Ele substitui TODOS os lançamentos atuais (aqui e na nuvem).'))return;
+   applyRemote(d);OPEN={};EDIT={};DREOPEN={};VIABOPEN={};save();render();};
   r.readAsText(f);};
  i.click();}
 
@@ -737,16 +826,38 @@ function render(){
  ['resumo','lanc','dre','fluxo','viab'].forEach(v=>{
   const el=document.getElementById('v-'+v);
   if(v===VIEW){el.classList.remove('hidden');
-   el.innerHTML=v==='resumo'?vResumo():v==='lanc'?vLanc():v==='dre'?vDre():v==='fluxo'?vFluxo():vViab();}
+   const mesmaTela=LASTVIEW===VIEW;
+   const oldBars=mesmaTela?[...el.querySelectorAll('.bar i')].map(b=>b.style.width):[];
+   el.innerHTML=v==='resumo'?vResumo():v==='lanc'?vLanc():v==='dre'?vDre():v==='fluxo'?vFluxo():vViab();
+   /* troca de aba: entrada suave */
+   if(!mesmaTela){el.classList.remove('vin');void el.offsetWidth;el.classList.add('vin');}
+   /* barra de progresso: sai da largura anterior e desliza até a nova */
+   [...el.querySelectorAll('.bar i')].forEach((b,k)=>{const w=b.style.width,o=oldBars[k];
+    if(o!=null&&o!==w){b.style.transition='none';b.style.width=o;void b.offsetWidth;b.style.transition='';b.style.width=w;}});
+   /* sanfona: a seta gira do estado antigo pro novo e o conteúdo aparece deslizando */
+   if(ANIM&&ANIM.view===v){const card=el.querySelectorAll('.card')[ANIM.i];
+    if(card){const ch=card.querySelector('.aphd .chev');
+     if(ch){ch.classList.toggle('up',!ANIM.open);void ch.offsetWidth;ch.classList.toggle('up',ANIM.open);}
+     if(ANIM.open)[...card.children].forEach(c=>{if(!c.classList.contains('aphd')&&!c.classList.contains('bar'))c.classList.add('reveal');});}}
+  }
   else el.classList.add('hidden');});
+ ANIM=null;POP=null;LASTVIEW=VIEW;
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===VIEW));
- const on=document.querySelector('.mchip.on');if(on)on.scrollIntoView({inline:'center',block:'nearest'});
+ /* centraliza o mês escolhido rolando só a faixa de meses (scrollIntoView podia mexer a página) */
+ if(MES!==LASTMES){const mEl=document.getElementById('months'),on=mEl.querySelector('.mchip.on');
+  if(on){const a=on.getBoundingClientRect(),m=mEl.getBoundingClientRect();
+   mEl.scrollTo({left:mEl.scrollLeft+a.left-m.left-(m.width-a.width)/2,behavior:LASTMES?'smooth':'auto'});}
+  LASTMES=MES;}
  if(FOCUS_NEXT!=null){
   const fl=[...document.querySelectorAll('#v-'+VIEW+' input')].filter(x=>x.offsetParent!==null);
   const n=fl[FOCUS_NEXT];FOCUS_NEXT=null;
-  if(n){try{n.focus();if(n.select)n.select();}catch(e){}}
+  if(n){try{n.focus();if(n.select)n.select();}catch(e){} setTimeout(()=>emVista(n),60);}
  }
 }
+/* mantém o campo focado acima do teclado (no iPhone o teclado encolhe a área visível) */
+function emVista(n){try{const vv=window.visualViewport,h=vv?vv.height:innerHeight,r=n.getBoundingClientRect();
+ if(r.bottom>h-16)window.scrollBy({top:r.bottom-h+90,behavior:'smooth'});
+ else if(r.top<120)window.scrollBy({top:r.top-140,behavior:'smooth'});}catch(e){}}
 /* Enter/Confirmar no teclado pula para o próximo campo */
 document.addEventListener('keydown',e=>{
  if(e.key!=='Enter'&&e.keyCode!==13)return;
@@ -760,7 +871,7 @@ document.addEventListener('keydown',e=>{
  el.blur();                 // dispara o onchange (salva o valor) e re-renderiza
  if(FOCUS_NEXT!=null){       // se não re-renderizou, foca manualmente
   const n=fl[idx+1];FOCUS_NEXT=null;
-  if(n){try{n.focus();if(n.select)n.select();}catch(_){}}
+  if(n){try{n.focus();if(n.select)n.select();}catch(_){} setTimeout(()=>emVista(n),60);}
  }
 });
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{VIEW=b.dataset.v;window.scrollTo(0,0);render();});
