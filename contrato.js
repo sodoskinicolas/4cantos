@@ -304,6 +304,7 @@ const CSS=`
 #v-contrato .ct-btn:active{transform:scale(.97)}
 #v-contrato .ct-btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 #v-contrato .ct-link{border:0;background:none;color:var(--blu);font:700 12px inherit;font-family:inherit;padding:0;text-align:left}
+#v-contrato #ct_cfg{padding:12px 0;align-self:flex-start}
 #v-contrato .ct-drop{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;border:1.5px dashed var(--line);border-radius:12px;padding:18px 12px;text-align:center;background:var(--card2)}
 #v-contrato .ct-drop b{font-size:14px;color:var(--blu)} #v-contrato .ct-drop span{font-size:11.5px;color:var(--mut)}
 #v-contrato .ct-drop input{position:absolute;inset:0;opacity:0;width:100%;height:100%;padding:0}
