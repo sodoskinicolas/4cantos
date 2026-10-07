@@ -363,8 +363,8 @@ function html(){
   <div class="ct-status" id="ct_status" aria-live="polite"></div>
   <ul class="ct-alerts" id="ct_avisos"></ul>
   <div id="ct_cfgbox" hidden class="ct-stack">
-    <p class="ct-hint">A leitura usa a API do Claude. Cole uma chave da Anthropic (console.anthropic.com → API Keys). Ela fica salva só neste aparelho e não vai para a nuvem do painel.</p>
-    <div class="ct-key"><input id="ct_key" type="password" placeholder="sk-ant-..." autocomplete="off" autocapitalize="off"><button type="button" class="ct-btn" id="ct_keysave">Salvar</button></div>
+    <p class="ct-hint">Cole uma chave do Gemini (aistudio.google.com → Get API key, começa com "AIza") ou da Anthropic (console.anthropic.com, começa com "sk-ant"). Ela fica salva só neste aparelho e não vai para a nuvem do painel.</p>
+    <div class="ct-key"><input id="ct_key" type="password" placeholder="AIza... ou sk-ant-..." autocomplete="off" autocapitalize="off"><button type="button" class="ct-btn" id="ct_keysave">Salvar</button></div>
     <button type="button" class="ct-link" id="ct_keydel" hidden>Apagar a chave deste aparelho</button>
   </div>
   <button type="button" class="ct-link" id="ct_cfg">Configurar leitura automática</button>
@@ -595,7 +595,7 @@ function registrar(){
 
 /* ---------- leitura dos documentos (API do Claude) ---------- */
 function cfgAI(){ try{ return JSON.parse(localStorage.getItem(AI_KEY)||'null'); }catch(e){ return null; } }
-function mostraCfg(){ const c=cfgAI(); $('keydel').hidden=!c; $('cfg').textContent=c?'Leitura automática configurada · alterar':'Configurar leitura automática'; atualizarBtnLer(); }
+function mostraCfg(){ const c=cfgAI(); $('keydel').hidden=!c; $('cfg').textContent=c?('Leitura automática pelo '+(/^AIza/.test(c.key)?'Gemini':'Claude')+' · alterar'):'Configurar leitura automática'; atualizarBtnLer(); }
 function atualizarBtnLer(){ $('ler').disabled=!arquivos.length; }
 const PROMPT=`Você vai ver fotos ou páginas de documentos pessoais brasileiros (RG, CIN, CNH, CPF, certidão de nascimento/casamento, comprovante) de UMA pessoa que vai alugar um quarto.
 Extraia os dados dela e responda somente com um objeto JSON neste formato:
@@ -626,14 +626,45 @@ async function reduzir(file,max=1600){
 const MODELO='claude-sonnet-5-5', MODELO_RESERVA='claude-haiku-4-5-20251001';
 function explicaErro(e){
   const m=e.msg||'';
-  if(e.http===401||/x-api-key|authentication/i.test(m)) return 'A chave da API não foi aceita. Confira em "Configurar leitura automática".';
+  if(e.http===401||/x-api-key|authentication|API key not valid|API_KEY_INVALID/i.test(m)) return 'A chave da API não foi aceita. Confira em "Configurar leitura automática".';
   if(/credit balance|billing|purchase credits/i.test(m)) return 'Sua conta da API da Anthropic está sem créditos. Adicione créditos em console.anthropic.com (Billing) e toque em ler de novo.';
+  if(e.http===403&&/SERVICE_DISABLED|has not been used|is disabled/i.test(m)) return 'A API do Gemini não está ativada no projeto dessa chave. Ative a "Generative Language API" no Google Cloud ou crie a chave em aistudio.google.com.';
   if(e.http===403) return 'A chave não tem permissão para usar a API ('+m.slice(0,120)+').';
-  if(e.http===429||e.http===529||/overloaded|rate limit/i.test(m)) return 'A API está ocupada ou o limite de uso foi atingido. Tente de novo em alguns minutos.';
+  if(e.http===429||e.http===529||e.http===503||/overloaded|rate limit|RESOURCE_EXHAUSTED|quota/i.test(m)) return 'A API está ocupada ou o limite de uso foi atingido. Tente de novo em alguns minutos.';
   if(e.http===413||/too large|exceeds|size/i.test(m)) return 'Arquivos grandes demais para a API. Mande menos fotos de uma vez ou um PDF por vez.';
   if(/image|media_type|base64/i.test(m)) return 'A API não aceitou uma das imagens. Tire a foto de novo ou mande em PDF. Detalhe: '+m.slice(0,140);
   if(/model/i.test(m)) return 'O modelo de leitura não está disponível nesta conta da API. Detalhe: '+m.slice(0,140);
+  if(e.http===200) return 'A leitura voltou vazia: '+m+'. Tente fotos mais nítidas.';
   return 'A API recusou o pedido (erro '+e.http+'): '+(m.slice(0,180)||'sem detalhe')+'.';
+}
+async function falhaHttp(r){ const t=await r.text().catch(()=>''); let m=''; try{ const j=JSON.parse(t); m=(j.error&&(j.error.message||j.error.status))||''; }catch(_){ m=t.slice(0,200); } return {http:r.status,msg:m}; }
+async function lerClaude(key,modelo,content){
+  const chamar=model=>fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:ctl.signal,
+    headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model,max_tokens:1500,messages:[{role:'user',content}]})});
+  let r=await chamar(modelo||MODELO);
+  if(!r.ok){ const e=await falhaHttp(r);
+    if((e.http===404||e.http===400)&&/model/i.test(e.msg)&&!modelo){ r=await chamar(MODELO_RESERVA); if(!r.ok) throw await falhaHttp(r); }
+    else throw e; }
+  const j=await r.json(); return (j.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('');
+}
+/* Gemini: mesmo conteúdo, convertido para inline_data; a chave vai no cabeçalho (nunca na URL) */
+const GEMINI_MODELOS=['gemini-3.8-flash','gemini-flash-latest','gemini-2.5-flash'];
+async function lerGemini(key,content){
+  const parts=content.map(x=> x.type==='text' ? {text:x.text} : {inline_data:{mime_type:x.source.media_type,data:x.source.data}});
+  const body=JSON.stringify({contents:[{role:'user',parts}],generationConfig:{responseMimeType:'application/json',temperature:0}});
+  let ultimo=null;
+  for(const m of GEMINI_MODELOS){
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent',{method:'POST',signal:ctl.signal,
+      headers:{'content-type':'application/json','x-goog-api-key':key},body});
+    if(r.ok){ const j=await r.json(), cand=(j.candidates||[])[0];
+      const t=cand&&cand.content&&(cand.content.parts||[]).map(p=>p.text||'').join('');
+      if(!t) throw {http:200,msg:'resposta vazia ('+((cand&&cand.finishReason)||(j.promptFeedback&&j.promptFeedback.blockReason)||'sem motivo')+')'};
+      return t; }
+    ultimo=await falhaHttp(r);
+    if(!(r.status===404 || (r.status===400&&/model/i.test(ultimo.msg)))) throw ultimo;   // só troca de modelo se o modelo não existir
+  }
+  throw ultimo;
 }
 async function ler(){
   const c=cfgAI();
@@ -653,16 +684,7 @@ async function ler(){
     if(!content.length){ status(''); return; }
     content.push({type:'text',text:PROMPT});
     status('Lendo '+(content.length-1)+(content.length>2?' arquivos':' arquivo')+'… leva de 10 a 40 segundos.',1);
-    const chamar=model=>fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:ctl.signal,
-      headers:{'content-type':'application/json','x-api-key':c.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model,max_tokens:1500,messages:[{role:'user',content}]})});
-    const falha=async r=>{ const t=await r.text().catch(()=>''); let m=''; try{ m=JSON.parse(t).error.message||''; }catch(_){ m=t.slice(0,200); } return {http:r.status,msg:m}; };
-    let r=await chamar(c.model||MODELO);
-    if(!r.ok){ let e=await falha(r);
-      // modelo indisponível nesta conta: tenta o modelo reserva uma vez
-      if((e.http===404||e.http===400)&&/model/i.test(e.msg)&&!c.model){ r=await chamar(MODELO_RESERVA); if(!r.ok) throw await falha(r); }
-      else throw e; }
-    const j=await r.json(), txt=(j.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('');
+    const txt = /^AIza/.test(c.key) ? await lerGemini(c.key,content) : await lerClaude(c.key,c.model,content);
     const a1=txt.indexOf('{'), a2=txt.lastIndexOf('}'); if(a1<0||a2<a1) throw {json:1};
     aplicar(JSON.parse(txt.slice(a1,a2+1)));
     status('Pronto. Os campos em verde vieram dos documentos. Confira cada um.');
@@ -748,7 +770,7 @@ function ligar(){
   $('arq').addEventListener('change',e=>{ addArquivos(e.target.files); e.target.value=''; });
   $('ler').onclick=ler; $('parar').onclick=()=>ctl&&ctl.abort();
   $('cfg').onclick=()=>{ $('cfgbox').hidden=!$('cfgbox').hidden; };
-  $('keysave').onclick=()=>{ const k=$('key').value.trim(); if(!/^sk-/.test(k)){ toast('A chave começa com "sk-". Confira e cole de novo.'); return; }
+  $('keysave').onclick=()=>{ const k=$('key').value.trim(); if(!/^(sk-|AIza)/.test(k)){ toast('Use uma chave da Anthropic (começa com "sk-ant") ou do Gemini (começa com "AIza").'); return; }
     try{ localStorage.setItem(AI_KEY,JSON.stringify({key:k})); }catch(e){} $('key').value=''; $('cfgbox').hidden=true; mostraCfg(); toast('Chave salva neste aparelho.'); };
   $('keydel').onclick=()=>{ try{ localStorage.removeItem(AI_KEY); }catch(e){} mostraCfg(); toast('Chave apagada deste aparelho.'); };
   $('docx').onclick=()=>baixar('docx'); $('pdf').onclick=()=>baixar('pdf');
