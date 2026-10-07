@@ -310,6 +310,7 @@ const CSS=`
 #v-contrato .ct-alerts li.ko{background:rgba(248,113,113,.12);color:var(--red)}
 #v-contrato .ct-alerts li.ok{background:rgba(52,211,153,.12);color:var(--grn)}
 #v-contrato .ct-key{display:flex;gap:8px}
+#v-contrato .ct-erro{color:var(--red)}
 #v-contrato .ct-paperwrap{max-height:70vh;overflow:auto;border-radius:10px;-webkit-overflow-scrolling:touch}
 #v-contrato .ct-paper{background:var(--ct-paper);color:var(--ct-ink);padding:22px 18px;font:12.5px/1.6 Arial,Helvetica,sans-serif;border-radius:10px}
 #v-contrato .ct-paper p{margin:0 0 9px;text-align:justify;hyphens:auto}
@@ -363,8 +364,9 @@ function html(){
   <div class="ct-status" id="ct_status" aria-live="polite"></div>
   <ul class="ct-alerts" id="ct_avisos"></ul>
   <div id="ct_cfgbox" hidden class="ct-stack">
-    <p class="ct-hint">Cole uma chave do Gemini (aistudio.google.com → Get API key, começa com "AIza") ou da Anthropic (console.anthropic.com, começa com "sk-ant"). Ela fica salva só neste aparelho e não vai para a nuvem do painel.</p>
-    <div class="ct-key"><input id="ct_key" type="password" placeholder="AIza... ou sk-ant-..." autocomplete="off" autocapitalize="off"><button type="button" class="ct-btn" id="ct_keysave">Salvar</button></div>
+    <p class="ct-hint">Cole uma chave do Gemini (aistudio.google.com → Chaves de API, ícone de copiar) ou da Anthropic (console.anthropic.com, começa com "sk-ant"). Ela fica salva só neste aparelho e não vai para a nuvem do painel.</p>
+    <div class="ct-key"><input id="ct_key" type="password" placeholder="cole a chave aqui" autocomplete="off" autocapitalize="off"><button type="button" class="ct-btn" id="ct_keysave">Salvar</button></div>
+    <p class="ct-hint" id="ct_keymsg" hidden></p>
     <button type="button" class="ct-link" id="ct_keydel" hidden>Apagar a chave deste aparelho</button>
   </div>
   <button type="button" class="ct-link" id="ct_cfg">Configurar leitura automática</button>
@@ -594,8 +596,9 @@ function registrar(){
 }
 
 /* ---------- leitura dos documentos (API do Claude) ---------- */
+const ehClaude=k=>/^sk-ant-/.test(k||'');
 function cfgAI(){ try{ return JSON.parse(localStorage.getItem(AI_KEY)||'null'); }catch(e){ return null; } }
-function mostraCfg(){ const c=cfgAI(); $('keydel').hidden=!c; $('cfg').textContent=c?('Leitura automática pelo '+(/^AIza/.test(c.key)?'Gemini':'Claude')+' · alterar'):'Configurar leitura automática'; atualizarBtnLer(); }
+function mostraCfg(){ const c=cfgAI(); $('keydel').hidden=!c; $('cfg').textContent=c?('Leitura automática pelo '+(ehClaude(c.key)?'Claude':'Gemini')+' · alterar'):'Configurar leitura automática'; atualizarBtnLer(); }
 function atualizarBtnLer(){ $('ler').disabled=!arquivos.length; }
 const PROMPT=`Você vai ver fotos ou páginas de documentos pessoais brasileiros (RG, CIN, CNH, CPF, certidão de nascimento/casamento, comprovante) de UMA pessoa que vai alugar um quarto.
 Extraia os dados dela e responda somente com um objeto JSON neste formato:
@@ -684,7 +687,7 @@ async function ler(){
     if(!content.length){ status(''); return; }
     content.push({type:'text',text:PROMPT});
     status('Lendo '+(content.length-1)+(content.length>2?' arquivos':' arquivo')+'… leva de 10 a 40 segundos.',1);
-    const txt = /^AIza/.test(c.key) ? await lerGemini(c.key,content) : await lerClaude(c.key,c.model,content);
+    const txt = ehClaude(c.key) ? await lerClaude(c.key,c.model,content) : await lerGemini(c.key,content);
     const a1=txt.indexOf('{'), a2=txt.lastIndexOf('}'); if(a1<0||a2<a1) throw {json:1};
     aplicar(JSON.parse(txt.slice(a1,a2+1)));
     status('Pronto. Os campos em verde vieram dos documentos. Confira cada um.');
@@ -770,7 +773,9 @@ function ligar(){
   $('arq').addEventListener('change',e=>{ addArquivos(e.target.files); e.target.value=''; });
   $('ler').onclick=ler; $('parar').onclick=()=>ctl&&ctl.abort();
   $('cfg').onclick=()=>{ $('cfgbox').hidden=!$('cfgbox').hidden; };
-  $('keysave').onclick=()=>{ const k=$('key').value.trim(); if(!/^(sk-|AIza)/.test(k)){ toast('Use uma chave da Anthropic (começa com "sk-ant") ou do Gemini (começa com "AIza").'); return; }
+  $('keysave').onclick=()=>{ const k=$('key').value.replace(/\s+/g,''); const msg=$('keymsg');
+    if(k.length<20){ msg.className='ct-hint ct-erro'; msg.textContent=k?'Essa chave parece incompleta. Copie de novo pelo ícone de copiar no AI Studio e cole aqui.':'Cole a chave no campo antes de salvar.'; msg.hidden=false; return; }
+    msg.hidden=true;
     try{ localStorage.setItem(AI_KEY,JSON.stringify({key:k})); }catch(e){} $('key').value=''; $('cfgbox').hidden=true; mostraCfg(); toast('Chave salva neste aparelho.'); };
   $('keydel').onclick=()=>{ try{ localStorage.removeItem(AI_KEY); }catch(e){} mostraCfg(); toast('Chave apagada deste aparelho.'); };
   $('docx').onclick=()=>baixar('docx'); $('pdf').onclick=()=>baixar('pdf');
