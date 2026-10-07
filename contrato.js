@@ -460,6 +460,7 @@ function html(){
     <div class="ct-f"><label for="ct_inqNome">Nome do inquilino no painel</label><input id="ct_inqNome" autocapitalize="characters"></div>
     <label class="ct-check"><input type="checkbox" id="ct_lancar" checked><span id="ct_lancarTxt">Lançar o aluguel previsto nos meses vazios</span></label>
     <button type="button" class="ct-btn" id="ct_registrar">Registrar morador no quarto</button>
+    <p class="ct-hint" id="ct_reghint"></p>
   </div>
 </div></div>
 
@@ -605,6 +606,12 @@ function atualizar(){
     : 'Lançar o aluguel previsto nos meses vazios (o painel guarda só 2026)';
   $('lancar').disabled=!(ref&&ref.y===2026&&+s.aluguel>0);
   $('registrar').disabled=!(q&&$('inqNome').value.trim());
+  /* diz exatamente o que o registro vai mudar: a partir de quando, e quem fica nos meses anteriores */
+  let rh='';
+  if(q&&ref){ const nomeAntes=ref.y===2026&&ref.m>0&&typeof nomeNoMes==='function'?nomeNoMes(q,MESES[ref.m-1]):'';
+    rh = ref.y>2026 ? 'Entra a partir de '+MESES_EXT[ref.m]+' de '+ref.y+'. Os meses de 2026 não mudam.'
+       : 'Entra no '+q.quarto+' a partir de '+MESES_EXT[ref.m]+(ref.y<2026?' de '+ref.y:'')+'.'+(ref.y===2026&&ref.m>0?(nomeAntes?' Até '+MESES_EXT[ref.m-1]+' continua '+nomeAntes+'.':' Até '+MESES_EXT[ref.m-1]+' fica como vago.'):''); }
+  $('reghint').textContent=rh;
 }
 function mesRefInfo(){ const o=$('mesRef').selectedOptions[0]; return o?{y:+o.dataset.y,m:+o.dataset.m}:null; }
 
@@ -612,14 +619,17 @@ function mesRefInfo(){ const o=$('mesRef').selectedOptions[0]; return o?{y:+o.da
 function registrar(){
   const ap=apAtual(), q=ap&&ap.quartos[st.qi], nome=$('inqNome').value.trim().toUpperCase();
   if(!q||!nome) return;
-  q.inquilino=nome;
-  let n=0; const ref=mesRefInfo(), v=+$('aluguel').value||0;
+  const ref=mesRefInfo(), v=+$('aluguel').value||0;
+  /* só do mês de referência em diante: os meses anteriores continuam com quem morava antes */
+  const mi=!ref?0:ref.y<2026?0:ref.y>2026?12:ref.m;
+  if(typeof trocaMorador==='function') trocaMorador(q,mi,nome); else q.inquilino=nome;
+  let n=0;
   if($('lancar').checked && ref && ref.y===2026 && v>0){
     for(let m=ref.m;m<12;m++){ const c=q.meses[MESES[m]]; if(c && !c.v && !c.pago && !(c.pg>0)){ c.v=v; n++; } }
   }
   if(typeof save==='function') save();
   desenharQuartos(); atualizar();
-  toast(nome+' registrado no '+q.quarto+(n?' e aluguel lançado em '+n+(n>1?' meses.':' mês.'):'.'));
+  toast(nome+' registrado no '+q.quarto+(ref&&ref.y<=2026?' a partir de '+MESES_EXT[mi]:'')+(n?', aluguel lançado em '+n+(n>1?' meses.':' mês.'):'.'));
 }
 
 /* ---------- leitura dos documentos (API do Claude) ---------- */
