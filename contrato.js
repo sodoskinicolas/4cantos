@@ -31,6 +31,14 @@ function extenso(v){
 }
 function dinheiro(v){ return 'R$'+(+v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function valorComExtenso(v){ return dinheiro(v)+' ('+extenso(v)+')'; }
+/* caução: à vista (n=1) ou 2x. Sem valor da 1ª digitado, divide ao meio; a 2ª é sempre o resto (soma bate com o total). */
+function caucaoPartes(s){
+  const c=Math.round((+s.caucao||0)*100)/100, n=String(s.caucaoParcelas)==='2'?2:1;
+  if(n===1) return {n,c,c1:c,c2:0};
+  const dig=s.caucao1!==undefined&&s.caucao1!==null&&String(s.caucao1).trim()!=='';
+  const c1=dig?Math.round((+s.caucao1||0)*100)/100:Math.round(c/2*100)/100;
+  return {n,c,c1,c2:Math.round((c-c1)*100)/100};
+}
 function pad2(n){ return String(n).padStart(2,'0'); }
 function parseISO(s){ if(!s) return null; const [y,m,d]=s.split('-').map(Number); return (y&&m&&d)?{y,m,d}:null; }
 function toISO(o){ return o.y+'-'+pad2(o.m)+'-'+pad2(o.d); }
@@ -101,9 +109,11 @@ function montarContrato(s){
   P(T('Após o vencimento incidirá multa de 10%, juros de 1% ao mês e correção monetária.'));
 
   H('CAUÇÃO');
-  const c=+s.caucao||0, n=Math.max(1,parseInt(s.caucaoParcelas)||1);
-  const quando = n>1
-    ? [T(', em '),F(n+'x de '+dinheiro(Math.round(c/n*100)/100)),T(', sendo a primeira no dia '),F(dataExtenso(s.caucaoData),'data')]
+  const c=+s.caucao||0, cp=caucaoPartes(s);
+  /* caução à vista ou em até 2 parcelas, cada uma com o seu valor e a sua data */
+  const quando = cp.n===2
+    ? [T(', dividido em 2 (duas) parcelas: a primeira de '),F(cp.c1?valorComExtenso(cp.c1):'','valor da 1ª parcela'),T(', no dia '),F(dataExtenso(s.caucaoData),'data da 1ª parcela'),
+       T(', e a segunda de '),F(cp.c2>0?valorComExtenso(cp.c2):'','valor da 2ª parcela'),T(', no dia '),F(dataExtenso(s.caucao2Data),'data da 2ª parcela')]
     : [T(', no dia '),F(dataExtenso(s.caucaoData),'data da caução')];
   P(T('O sublocatário pagará um valor de '),F(c?valorComExtenso(c):'','valor da caução'),quando,
     T(', a título de caução que será devolvido ao SUBLOCATÁRIO quando sair, caso o sublocatário informe a saída com 30 dias de antecedência do pagamento do último aluguel, findo prazo do contrato e não tenha pendências de taxa de mudança, multas ou danos pendentes no apartamento.'));
@@ -413,9 +423,14 @@ function html(){
   <span class="ct-lbl">CAUÇÃO</span>
   <div class="ct-grid c3">
     <div class="ct-f"><label for="ct_caucao">Valor (R$)</label><input id="ct_caucao" data-k="caucao" class="ct-num" type="number" inputmode="decimal" min="0" step="10"></div>
-    <div class="ct-f"><label for="ct_caucaoParcelas">Pagamento</label><select id="ct_caucaoParcelas" data-k="caucaoParcelas"><option value="1">À vista</option><option value="2">2 vezes</option><option value="3">3 vezes</option><option value="4">4 vezes</option></select></div>
+    <div class="ct-f"><label for="ct_caucaoParcelas">Pagamento</label><select id="ct_caucaoParcelas" data-k="caucaoParcelas"><option value="1">À vista</option><option value="2">Parcelado em 2x</option></select></div>
     <div class="ct-f"><label for="ct_caucaoData" id="ct_lcd">Pago em</label><input id="ct_caucaoData" data-k="caucaoData" type="date"></div>
   </div>
+  <div class="ct-grid" id="ct_fcau2" hidden>
+    <div class="ct-f"><label for="ct_caucao1">Valor da 1ª (R$)</label><input id="ct_caucao1" data-k="caucao1" class="ct-num" type="number" inputmode="decimal" min="0" step="10" placeholder="metade"></div>
+    <div class="ct-f"><label for="ct_caucao2Data">2ª parcela em</label><input id="ct_caucao2Data" data-k="caucao2Data" type="date"></div>
+  </div>
+  <p class="ct-hint" id="ct_cauhint" hidden></p>
 </div></div>
 
 <div class="ct-card"><div class="ct-h"><b>5</b>Prazo e assinatura</div><div class="ct-stack">
@@ -514,7 +529,13 @@ function sincronizar(){
   preencherMeses();
   $('fchave').hidden=$('forma').value!=='pix';
   $('fcurso').hidden=!$('clausulaCurso').checked;
-  $('lcd').textContent=+$('caucaoParcelas').value>1?'1ª parcela em':'Pago em';
+  const parc=+$('caucaoParcelas').value===2;
+  $('lcd').textContent=parc?'1ª parcela em':'Pago em';
+  $('fcau2').hidden=!parc; $('cauhint').hidden=!parc;
+  if(!tocado.has('caucao2Data')) $('caucao2Data').value=addMeses($('caucaoData').value,1);
+  if(parc){ const cp=caucaoPartes({caucao:$('caucao').value,caucaoParcelas:'2',caucao1:$('caucao1').value});
+    $('caucao1').placeholder=cp.c?'metade: '+dinheiro(Math.round(cp.c/2*100)/100).replace('R$',''):'metade';
+    $('cauhint').textContent=cp.c? '1ª de '+dinheiro(cp.c1)+' · 2ª de '+dinheiro(Math.max(0,cp.c2))+(cp.c1>=cp.c?' — a 1ª não pode ser o total':'') : 'Informe o valor do caução.'; }
   const padrao=addMeses($('inicio').value,st.meses-1);
   $('hintTermino').innerHTML = $('termino').value===padrao
     ? 'Término como nos seus contratos: '+(st.meses-1)+' meses após o início.'
@@ -538,7 +559,7 @@ function estado(){
     quarto:q?numQuarto(q):'', imovelTexto: ap&&end ? end+', apto '+ap.id : '',
     aluguel:v('aluguel'), primeiroValor:v('primeiroValor'), pag1Data:$('pag1Data').value, mesRef:$('mesRef').value, vencimento:st.vencimento,
     incluso:$('incluso').checked, formaTexto,
-    caucao:v('caucao'), caucaoParcelas:$('caucaoParcelas').value, caucaoData:$('caucaoData').value,
+    caucao:v('caucao'), caucaoParcelas:$('caucaoParcelas').value, caucaoData:$('caucaoData').value, caucao1:v('caucao1'), caucao2Data:$('caucao2Data').value,
     meses:st.meses, inicio:$('inicio').value, termino:$('termino').value, assinatura:$('assinatura').value,
     clausulaCurso:$('clausulaCurso').checked, textoCurso:v('textoCurso') };
 }
@@ -549,6 +570,11 @@ function pendencias(s,blocks){
   if(s.cpf&&!cpfValido(s.cpf)) P.push({t:'O CPF '+s.cpf+' não confere (dígito verificador). Confira no documento.',ko:1,bloq:1});
   if(s.nascimento){ const a=idade(s.nascimento); if(a===null) P.push({t:'Nascimento fora do formato dd/mm/aaaa.',ko:1,bloq:1}); else if(a<18) P.push({t:'Morador com '+a+' anos: o contrato diz "maior". Menor precisa de responsável assinando.',ko:1}); }
   if(s.inicio&&s.termino&&s.termino<=s.inicio) P.push({t:'O término está antes do início.',ko:1,bloq:1});
+  const cp=caucaoPartes(s);
+  if(cp.n===2&&cp.c>0){
+    if(cp.c1<=0||cp.c1>=cp.c) P.push({t:'Caução em 2x: a 1ª parcela precisa ser maior que zero e menor que o total ('+dinheiro(cp.c)+').',ko:1,bloq:1});
+    if(s.caucaoData&&s.caucao2Data&&s.caucao2Data<=s.caucaoData) P.push({t:'Caução em 2x: a 2ª parcela vence antes (ou no mesmo dia) da 1ª.',ko:1,bloq:1});
+  }
   if(!s.cpf) P.push({t:'Sem CPF: o contrato sai só com o RG.'});
   const q=apAtual()&&apAtual().quartos[st.qi]; if(q&&q.inquilino) P.push({t:q.quarto+' está com '+q.inquilino+' no painel. Confira se é o quarto certo.'});
   return P;
