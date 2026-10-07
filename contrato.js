@@ -335,6 +335,25 @@ const CSS=`
 #v-contrato .ct-paper mark{background:var(--ct-mark);color:inherit;border-radius:2px;padding:0 1px}
 #v-contrato .ct-paper mark.miss{background:var(--ct-miss);color:var(--ct-miss-ink);font-weight:700}
 #v-contrato .ct-reg{border-top:1px solid var(--line);padding-top:12px;margin-top:2px}
+#v-contrato .ct-zap{border-top:1px solid var(--line);padding-top:12px}
+#v-contrato .ct-zlista{display:flex;flex-direction:column;gap:8px}
+#v-contrato .ct-zlista:empty{display:none}
+#v-contrato .ct-zitem{border:1px solid var(--line);border-radius:12px;background:var(--card2);padding:11px 12px;display:flex;flex-direction:column;gap:8px}
+#v-contrato .ct-ztop{display:flex;align-items:flex-start;gap:8px}
+#v-contrato .ct-ztop b{flex:1;font-size:13.5px;line-height:1.3}
+#v-contrato .ct-ztop small{display:block;color:var(--mut);font-weight:500;font-size:11.5px;margin-top:2px}
+#v-contrato .ct-zx{border:0;background:none;color:var(--mut);font-size:18px;line-height:1;padding:2px 4px;min-width:32px;min-height:32px}
+#v-contrato .ct-zsig{display:flex;flex-wrap:wrap;gap:6px}
+#v-contrato .ct-zchip{font-size:11.5px;font-weight:700;border-radius:999px;padding:4px 9px;background:rgba(148,163,184,.14);color:var(--mut)}
+#v-contrato .ct-zchip.ab{background:rgba(250,204,21,.14);color:#facc15}
+#v-contrato .ct-zchip.ok{background:rgba(74,222,128,.15);color:#4ade80}
+#v-contrato .ct-zchip.no{background:rgba(248,113,113,.15);color:#f87171}
+#v-contrato .ct-zbtns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#v-contrato .ct-zbtns a,#v-contrato .ct-zbtns button{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;padding:10px 8px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:700;line-height:1.2;background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.4);color:var(--blu);min-height:40px;box-sizing:border-box}
+#v-contrato .ct-zbtns .wa{background:#25d366;border-color:#25d366;color:#06240f}
+#v-contrato .ct-zbtns .ok{background:rgba(74,222,128,.15);border-color:rgba(74,222,128,.45);color:#4ade80}
+#v-contrato .ct-zbtns button:disabled{opacity:.5}
+#v-contrato .ct-ztest{font-size:10.5px;font-weight:800;color:#f59e0b;border:1px solid rgba(245,158,11,.5);border-radius:6px;padding:1px 5px;margin-left:4px;vertical-align:1px}
 #v-contrato .ct-msg{border:1px solid var(--line);border-radius:12px;background:var(--card2);padding:0 12px}
 #v-contrato .ct-msg summary{cursor:pointer;padding:13px 0;font-size:13px;font-weight:700;color:var(--blu);list-style:none}
 #v-contrato .ct-msg summary::-webkit-details-marker{display:none}
@@ -468,6 +487,14 @@ function html(){
     <button type="button" class="ct-btn" id="ct_share" hidden>Enviar PDF…</button>
     <button type="button" class="ct-btn gh" id="ct_copiar">Copiar texto</button>
     <button type="button" class="ct-btn gh" id="ct_limpar2">Limpar e começar outro</button>
+  </div>
+  <div class="ct-zap ct-stack" id="ct_zap">
+    <span class="ct-lbl">ASSINAR PELA ZAPSIGN</span>
+    <button type="button" class="ct-btn pri" id="ct_zapcriar">Enviar para assinar pela ZapSign</button>
+    <label class="ct-check"><input type="checkbox" id="ct_zapcpf" checked>Pedir o CPF do inquilino na assinatura</label>
+    <label class="ct-check"><input type="checkbox" id="ct_zapfoto">Pedir selfie e foto do documento (mais segurança)</label>
+    <p class="ct-hint" id="ct_zaphint">Cria o contrato na ZapSign com você e o inquilino assinando e gera o link para mandar no WhatsApp. Ele assina pelo celular, sem conta e sem instalar nada.</p>
+    <div class="ct-zlista" id="ct_zaplista"></div>
   </div>
   <details class="ct-msg"><summary>Mensagem que vai junto no WhatsApp (como assinar pelo gov.br)</summary>
     <textarea id="ct_msg" rows="14" aria-label="Mensagem que vai junto com o PDF"></textarea>
@@ -613,7 +640,7 @@ function atualizar(){
   const P=pendencias(s,blocks), ul=$('pend'); ul.innerHTML='';
   if(!P.length) ul.innerHTML='<li class="ok">Tudo preenchido. Confira a prévia e baixe.</li>';
   P.forEach(p=>{ const li=document.createElement('li'); if(p.ko) li.className='ko'; li.textContent=p.t; ul.append(li); });
-  const bloq=P.some(p=>p.bloq); ['docx','pdf','share'].forEach(k=>$(k).disabled=bloq);
+  const bloq=P.some(p=>p.bloq); ['docx','pdf','share','zapcriar'].forEach(k=>$(k).disabled=bloq);
   const a=idade(s.nascimento); $('tIdade').innerHTML=a===null?'':'<span class="ct-tag'+(a<18?' ko':'')+'">'+a+' anos</span>';
   $('tCpf').innerHTML=!s.cpf?'':(cpfValido(s.cpf)?'<span class="ct-tag">válido</span>':'<span class="ct-tag ko">não confere</span>');
   const ap=apAtual(), q=ap&&ap.quartos[st.qi];
@@ -816,6 +843,97 @@ async function compartilhar(){
   }catch(e){ if(!(e&&e.name==='AbortError')) toast('Não deu para abrir o compartilhamento. Use "Baixar PDF".'); }
   finally{ atualizar(); }
 }
+/* ---------- ZapSign (pela função "zapsign" do Supabase, onde fica o token) ---------- */
+function blobB64(b){ return new Promise((ok,er)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result).split(',')[1]); r.onerror=er; r.readAsDataURL(b); }); }
+async function zapApi(corpo){
+  if(typeof SB==='undefined'||!SB||typeof USER==='undefined'||!USER) throw new Error('Conecte o app à nuvem (entre com seu login) para usar a ZapSign.');
+  const {data}=await SB.auth.getSession(), ses=data&&data.session;
+  if(!ses) throw new Error('Sua sessão expirou. Entre de novo no app.');
+  const c=(typeof cfg==='function')?cfg():{};
+  let r; try{ r=await fetch(c.url+'/functions/v1/zapsign',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+ses.access_token,apikey:c.key},body:JSON.stringify(corpo)}); }
+  catch(e){ throw new Error('Sem conexão com a nuvem agora. Tente de novo.'); }
+  let j=null; try{ j=await r.json(); }catch(_){}
+  if(r.status===404) throw new Error('A ligação com a ZapSign ainda não foi instalada no Supabase.');
+  if(!r.ok) throw new Error((j&&(j.erro||j.message||j.msg))||('Erro '+r.status+' na ZapSign.'));
+  return j;
+}
+function zapTodos(){ const L=[]; aps().forEach(ap=>(ap.zap||[]).forEach(z=>L.push({ap,z}))); return L.sort((a,b)=>b.z.em-a.z.em); }
+const ZST={'new':['Não abriu','',''],'link-opened':['Abriu o link','ab'],'signed':['Assinou','ok'],'refused':['Recusou','no']};
+function zapMsg(z,link){
+  const nome=titulo((z.nome||'').split(/\s+/)[0]);
+  const onde=z.quarto?'do quarto '+z.quarto+(z.apId?' do apto '+z.apId:''):'do seu quarto';
+  return (nome?'Olá, '+nome+'! ':'Olá! ')+'Tudo bem? Segue o contrato '+onde+' para você assinar pela ZapSign. É gratuito e pelo celular, sem criar conta nem instalar nada:\n\n'
+   +'1. Abra o link: '+link+'\n'
+   +'2. Leia o contrato e toque em "Assinar".\n'
+   +'3. Preencha o que for pedido'+(z.cpf?' (nome e CPF'+(z.foto?', selfie e foto do documento':'')+')':(z.foto?' (selfie e foto do documento)':''))+'.\n'
+   +'4. Desenhe sua assinatura na tela e confirme.\n\n'
+   +'No final dá para baixar a sua via assinada. Qualquer dúvida, me chama aqui.';
+}
+function desenharZap(){
+  const el=$('zaplista'); if(!el) return; el.innerHTML='';
+  zapTodos().slice(0,8).forEach(({ap,z})=>{
+    const inq=(z.sig||[]).find(s=>/subloca(t|tá)ri/i.test(s.papel))||(z.sig||[])[0]||{};
+    const eu=(z.sig||[]).find(s=>/sublocador/i.test(s.papel));
+    const tudo=z.status==='signed'||((z.sig||[]).length&&(z.sig||[]).every(s=>s.status==='signed'));
+    const d=document.createElement('div'); d.className='ct-zitem';
+    const quando=new Date(z.em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+    d.innerHTML='<div class="ct-ztop"><b>'+escH(z.nome||'Contrato')+(z.sandbox?'<span class="ct-ztest">TESTE</span>':'')
+      +'<small>Apto '+escH(ap.id)+(z.quarto?' · Quarto '+escH(z.quarto):'')+' · enviado '+escH(quando)+'</small></b>'
+      +'<button type="button" class="ct-zx" aria-label="Tirar da lista">×</button></div>'
+      +'<div class="ct-zsig">'+(z.sig||[]).map(s=>{ const t=ZST[s.status]||[s.status||'—','']; return '<span class="ct-zchip '+t[1]+'">'+escH((/sublocador/i.test(s.papel)?'Você':titulo((s.nome||'').split(/\s+/)[0])))+': '+escH(t[0])+'</span>'; }).join('')+'</div>'
+      +'<div class="ct-zbtns"></div>';
+    const bt=d.querySelector('.ct-zbtns');
+    if(!tudo&&inq.url&&inq.status!=='signed'){ const a=document.createElement('a'); a.className='wa'; a.target='_blank'; a.rel='noopener';
+      const msg=zapMsg(Object.assign({apId:ap.id},z),inq.url); a.href='https://wa.me/?text='+encodeURIComponent(msg); a.textContent='Mandar no WhatsApp';
+      a.onclick=()=>{ if(navigator.clipboard) navigator.clipboard.writeText(msg).catch(()=>{}); }; bt.append(a); }
+    if(eu&&eu.url&&eu.status!=='signed'){ const a=document.createElement('a'); a.target='_blank'; a.rel='noopener'; a.href=eu.url; a.textContent='Assinar (você)'; bt.append(a); }
+    if(z.assinado&&z.assinadoAte>Date.now()){ const a=document.createElement('a'); a.className='ok'; a.target='_blank'; a.rel='noopener'; a.href=z.assinado; a.textContent='Abrir PDF assinado'; bt.append(a); }
+    const up=document.createElement('button'); up.type='button'; up.textContent=!tudo?'Ver se já assinou':(z.assinado&&z.assinadoAte>Date.now()?'Atualizar':'Pegar PDF assinado');
+    up.onclick=()=>zapAtualizar(z,up,true); bt.append(up);
+    if(inq.url&&!tudo){ const cp=document.createElement('button'); cp.type='button'; cp.textContent='Copiar link';
+      cp.onclick=async()=>{ try{ await navigator.clipboard.writeText(inq.url); toast('Link do inquilino copiado.'); }catch(_){ toast(inq.url); } }; bt.append(cp); }
+    d.querySelector('.ct-zx').onclick=()=>{ const i=ap.zap.indexOf(z); if(i<0) return; ap.zap.splice(i,1); if(typeof save==='function') save(); desenharZap();
+      toast('Tirado da lista (continua na ZapSign).',{rotulo:'Desfazer',fn:()=>{ ap.zap.splice(i,0,z); if(typeof save==='function') save(); desenharZap(); }}); };
+    el.append(d);
+  });
+}
+async function zapAtualizar(z,btn,avisar){
+  if(btn) btn.disabled=true;
+  try{
+    const r=await zapApi({acao:'status',doc:z.doc});
+    z.status=r.status; z.sig=(r.signatarios||[]).map(s=>({nome:s.nome,papel:s.papel,url:s.url,status:s.status}));
+    if(r.assinado){ z.assinado=r.assinado; z.assinadoAte=Date.now()+55*60000; }
+    if(typeof save==='function') save(); desenharZap();
+    if(avisar) toast(r.assinado?'Todos assinaram. Toque em "Abrir PDF assinado".':'Status atualizado.');
+  }catch(e){ if(avisar) toast(e.message); if(btn) btn.disabled=false; }
+}
+let zapUlt=0;
+function zapRefrescar(){ if(Date.now()-zapUlt<60000) return; zapUlt=Date.now();
+  if(typeof USER==='undefined'||!USER) return;
+  zapTodos().filter(({z})=>z.status!=='signed'&&Date.now()-z.em<60*864e5).slice(0,5).forEach(({z})=>zapAtualizar(z,null,false)); }
+async function zapCriar(){
+  const btn=$('zapcriar'), s=ultimo.s, ap=apAtual();
+  if(!ap){ toast('Escolha o apartamento e o quarto antes.'); return; }
+  if(!(s.nome||'').trim()){ toast('Falta o nome do inquilino.'); return; }
+  btn.disabled=true; const txt=btn.textContent; btn.textContent='Criando na ZapSign…';
+  try{
+    const pdf=await blobB64(await gerar('pdf'));
+    const nomeDoc=nomeArquivo('pdf').replace(/\.pdf$/,'');
+    const foto=$('zapfoto').checked, cpf=$('zapcpf').checked;
+    const r=await zapApi({acao:'criar',nome:nomeDoc,pdf,signatarios:[
+      {nome:s.nome.trim(),papel:'Sublocatário',pedir_cpf:cpf,selfie:foto,foto_documento:foto},
+      {nome:SUBLOCADOR.nome,papel:'Sublocador'}]});
+    const z={doc:r.doc,nome:s.nome.trim(),quarto:s.quarto||'',em:Date.now(),status:r.status,sandbox:!!r.sandbox,cpf,foto,
+      sig:(r.signatarios||[]).map(x=>({nome:x.nome,papel:x.papel,url:x.url,status:x.status}))};
+    (ap.zap=ap.zap||[]).unshift(z); if(typeof save==='function') save(); desenharZap();
+    const inq=z.sig.find(x=>/subloca(t|tá)ri/i.test(x.papel))||z.sig[0];
+    if(inq&&inq.url&&navigator.clipboard) navigator.clipboard.writeText(zapMsg(Object.assign({apId:ap.id},z),inq.url)).catch(()=>{});
+    toast('Contrato criado na ZapSign. Toque em "Mandar no WhatsApp" logo abaixo.');
+    const it=$('zaplista').firstElementChild; if(it) it.scrollIntoView({block:'nearest',behavior:'smooth'});
+    feito.arquivo=true; talvezConcluir(4000);
+  }catch(e){ toast(e&&e.message==='lib'?'Sem internet para gerar o PDF. Tente de novo conectado.':(e.message||'Não deu para criar na ZapSign.')); }
+  finally{ btn.textContent=txt; btn.disabled=false; atualizar(); }
+}
 let tt; function toast(t,acao){ const el=$('toast'); el.textContent=t; el.hidden=false; clearTimeout(tt);
   if(acao){ const b=document.createElement('button'); b.type='button'; b.className='ct-tacao'; b.textContent=acao.rotulo;
     b.onclick=()=>{ el.hidden=true; clearTimeout(tt); acao.fn(); }; el.append(' ',b); }
@@ -889,6 +1007,7 @@ function ligar(){
   $('copiar').onclick=async()=>{ const t=textoPlano(ultimo.blocks);
     try{ await navigator.clipboard.writeText(t); toast('Texto copiado.'); }catch(_){ const r=document.createRange(); r.selectNodeContents($('sheet')); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Texto selecionado. Copie pelo menu.'); } };
   $('registrar').onclick=registrar;
+  $('zapcriar').onclick=zapCriar;
   $('limpar').onclick=()=>limpar(); $('limpar2').onclick=()=>limpar();
   $('msg').addEventListener('input',()=>tocado.add('msg'));
   $('msgpadrao').onclick=()=>{ tocado.delete('msg'); atualizar(); toast('Mensagem voltou ao texto padrão.'); };
@@ -903,7 +1022,7 @@ window.Contrato={
       el.innerHTML=html(); montado=true; ligar();
       desenharVenc(); desenharMeses(); mostraCfg();
     }
-    desenharAps(); desenharQuartos(); desenharValores(); sincronizar(); atualizar();
+    desenharAps(); desenharQuartos(); desenharValores(); sincronizar(); atualizar(); desenharZap(); zapRefrescar();
     lib('jspdf').catch(()=>{}); lib('docx').catch(()=>{}); // pré-carrega para o botão responder rápido
   }
 };
