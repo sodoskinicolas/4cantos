@@ -1,0 +1,15 @@
+name: Despertador Supabase
+# Acessa o banco a cada 3 dias para o projeto gratuito do Supabase não pausar (pausa após 7 dias parado).
+on:
+  schedule:
+    - cron: '17 11 */3 * *'
+  workflow_dispatch:
+jobs:
+  acordar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Acessa o banco
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" "https://rktijrigwvkllofvwhqc.supabase.co/rest/v1/painel?select=user_id&limit=1" -H "apikey: sb_publishable_S9qvuMukZIAmHC04-B4zog_1GsKFN0s")
+          echo "resposta do Supabase: $code"
+          test "$code" -lt 500
