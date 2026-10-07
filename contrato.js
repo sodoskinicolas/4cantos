@@ -335,6 +335,14 @@ const CSS=`
 #v-contrato .ct-paper mark{background:var(--ct-mark);color:inherit;border-radius:2px;padding:0 1px}
 #v-contrato .ct-paper mark.miss{background:var(--ct-miss);color:var(--ct-miss-ink);font-weight:700}
 #v-contrato .ct-reg{border-top:1px solid var(--line);padding-top:12px;margin-top:2px}
+#v-contrato .ct-msg{border:1px solid var(--line);border-radius:12px;background:var(--card2);padding:0 12px}
+#v-contrato .ct-msg summary{cursor:pointer;padding:13px 0;font-size:13px;font-weight:700;color:var(--blu);list-style:none}
+#v-contrato .ct-msg summary::-webkit-details-marker{display:none}
+#v-contrato .ct-msg summary::before{content:'▸ ';display:inline-block;transition:transform .2s}
+#v-contrato .ct-msg[open] summary::before{transform:rotate(90deg)}
+#v-contrato .ct-msg textarea{width:100%;box-sizing:border-box;min-height:260px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--tx);font:500 15px/1.45 inherit;font-family:inherit;padding:10px;resize:vertical}
+#v-contrato .ct-msgbtns{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 12px}
+#v-contrato .ct-msgbtns .ct-btn{flex:0 0 auto;padding-left:16px;padding-right:16px}
 #v-contrato .ct-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 2px 10px}
 #v-contrato .ct-topo h2.sec{margin:0}
 #v-contrato .ct-limpar{border:1px solid var(--line);background:var(--card);color:var(--mut);font:700 12px inherit;font-family:inherit;border-radius:10px;padding:11px 14px;margin:0}
@@ -461,7 +469,11 @@ function html(){
     <button type="button" class="ct-btn gh" id="ct_copiar">Copiar texto</button>
     <button type="button" class="ct-btn gh" id="ct_limpar2">Limpar e começar outro</button>
   </div>
-  <p class="ct-hint">Depois de baixar ou enviar o contrato e registrar o morador, o formulário limpa sozinho para o próximo.</p>
+  <details class="ct-msg"><summary>Mensagem que vai junto no WhatsApp (como assinar pelo gov.br)</summary>
+    <textarea id="ct_msg" rows="14" aria-label="Mensagem que vai junto com o PDF"></textarea>
+    <div class="ct-msgbtns"><button type="button" class="ct-btn gh" id="ct_msgcopiar">Copiar mensagem</button><button type="button" class="ct-link" id="ct_msgpadrao">Voltar ao texto padrão</button></div>
+  </details>
+  <p class="ct-hint">"Enviar PDF…" manda o contrato com essa mensagem e também deixa ela copiada: se o WhatsApp não mostrar o texto, é só colar na conversa. Depois de baixar ou enviar o contrato e registrar o morador, o formulário limpa sozinho para o próximo.</p>
   <div class="ct-reg ct-stack" id="ct_reg">
     <span class="ct-lbl">REGISTRAR NO PAINEL</span>
     <div class="ct-f"><label for="ct_inqNome">Nome do inquilino no painel</label><input id="ct_inqNome" autocapitalize="characters"></div>
@@ -619,6 +631,7 @@ function atualizar(){
     rh = ref.y>2026 ? 'Entra a partir de '+MESES_EXT[ref.m]+' de '+ref.y+'. Os meses de 2026 não mudam.'
        : 'Entra no '+q.quarto+' a partir de '+MESES_EXT[ref.m]+(ref.y<2026?' de '+ref.y:'')+'.'+(ref.y===2026&&ref.m>0?(nomeAntes?' Até '+MESES_EXT[ref.m-1]+' continua '+nomeAntes+'.':' Até '+MESES_EXT[ref.m-1]+' fica como vago.'):''); }
   $('reghint').textContent=rh;
+  if(!tocado.has('msg')) $('msg').value=msgPadrao(s);
 }
 function mesRefInfo(){ const o=$('mesRef').selectedOptions[0]; return o?{y:+o.dataset.y,m:+o.dataset.m}:null; }
 
@@ -792,9 +805,14 @@ async function baixar(ext){
 }
 async function compartilhar(){
   const btn=$('share'); btn.disabled=true;
+  /* copia a mensagem já no toque (o navegador só deixa copiar dentro do toque): se o WhatsApp
+     descartar o texto que vai junto com o arquivo, é só colar */
+  const msg=$('msg').value.trim(); if(msg&&navigator.clipboard) navigator.clipboard.writeText(msg).catch(()=>{});
   try{
     const blob=await gerar('pdf'), file=new File([blob],nomeArquivo('pdf'),{type:'application/pdf'});
-    await navigator.share({files:[file],title:file.name}); feito.arquivo=true; talvezConcluir();
+    const dados=msg?{files:[file],title:file.name,text:msg}:{files:[file],title:file.name};
+    await navigator.share(navigator.canShare&&!navigator.canShare(dados)?{files:[file],title:file.name}:dados);
+    toast('PDF enviado. A mensagem ficou copiada: se não apareceu no WhatsApp, é só colar.'); feito.arquivo=true; talvezConcluir(2600);
   }catch(e){ if(!(e&&e.name==='AbortError')) toast('Não deu para abrir o compartilhamento. Use "Baixar PDF".'); }
   finally{ atualizar(); }
 }
@@ -825,7 +843,22 @@ function limpar(motivo){
   const soltar=()=>f.arquivos.forEach(a=>{ if(a.url&&!arquivos.includes(a)) URL.revokeObjectURL(a.url); });
   setTimeout(soltar,8000);
   toast(motivo||'Formulário limpo.',{rotulo:'Desfazer',fn:()=>restaurar(f)}); }
-function talvezConcluir(){ if(feito.arquivo&&feito.morador) setTimeout(()=>limpar('Contrato concluído: arquivo gerado e morador registrado. Formulário limpo para o próximo.'),900); }
+function talvezConcluir(ms){ if(feito.arquivo&&feito.morador) setTimeout(()=>limpar('Contrato concluído: arquivo gerado e morador registrado. Formulário limpo para o próximo.'),ms||900); }
+
+/* ---------- mensagem do WhatsApp: passo a passo da assinatura gov.br (assinador.iti.br) ---------- */
+function titulo(t){ return String(t||'').toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase()); }
+function msgPadrao(s){
+  const ap=apAtual(), nome=titulo((s.nome||'').split(/\s+/)[0]);
+  const onde=s.quarto?'do quarto '+s.quarto+(ap?' do apto '+ap.id:''):'do seu quarto';
+  return (nome?'Olá, '+nome+'! ':'Olá! ')+'Tudo bem? Segue o contrato '+onde+' para você assinar pelo gov.br. É gratuito e dá para fazer pelo celular:\n\n'
+   +'1. Salve este PDF no seu celular.\n'
+   +'2. Acesse assinador.iti.br e entre com sua conta gov.br (CPF e senha). A conta precisa ser nível prata ou ouro.\n'
+   +'3. Toque em "Escolher arquivo" e selecione o contrato.\n'
+   +'4. Toque no lugar onde vai a sua assinatura (no fim do contrato, em cima do seu nome) e depois em "Assinar".\n'
+   +'5. Digite o código que chega no app gov.br ou por SMS.\n'
+   +'6. Baixe o arquivo assinado (ícone de download) e me envie aqui por este WhatsApp.\n\n'
+   +'Importante: não use "imprimir" para salvar, senão a assinatura não vai junto. Se sua conta gov.br for bronze, dá para subir para prata pelo próprio app gov.br.';
+}
 
 /* ---------- montagem ---------- */
 function ligar(){
@@ -857,6 +890,11 @@ function ligar(){
     try{ await navigator.clipboard.writeText(t); toast('Texto copiado.'); }catch(_){ const r=document.createRange(); r.selectNodeContents($('sheet')); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Texto selecionado. Copie pelo menu.'); } };
   $('registrar').onclick=registrar;
   $('limpar').onclick=()=>limpar(); $('limpar2').onclick=()=>limpar();
+  $('msg').addEventListener('input',()=>tocado.add('msg'));
+  $('msgpadrao').onclick=()=>{ tocado.delete('msg'); atualizar(); toast('Mensagem voltou ao texto padrão.'); };
+  $('msgcopiar').onclick=async()=>{ const t=$('msg').value;
+    try{ await navigator.clipboard.writeText(t); toast('Mensagem copiada. Cole no WhatsApp junto com o PDF.'); }
+    catch(_){ $('msg').select(); toast('Mensagem selecionada. Copie pelo menu.'); } };
 }
 window.Contrato={
   render(el){
