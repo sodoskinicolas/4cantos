@@ -33,9 +33,20 @@ No celular, use *Adicionar à tela de início* para o painel abrir como aplicati
 | Arquivo | Função |
 |---|---|
 | `index.html` | O painel inteiro: interface, cálculos e sincronização |
+| `contrato.js` | Aba **Contrato**: lê os documentos do morador, preenche o contrato padrão de sublocação e gera Word/PDF |
 | `supabase-setup.sql` | Tabela `painel`, políticas RLS e realtime |
 | `render.yaml` | Configuração do site estático no Render |
 | `manifest.json`, `icon-*.png` | Ícone e comportamento de app no celular |
+
+## Aba Contrato
+
+Gera o contrato de sublocação de quarto a partir das fotos/PDFs dos documentos do morador.
+A leitura automática usa a API do Claude: na própria aba, toque em *Configurar leitura
+automática* e cole uma chave da Anthropic. A chave fica só no aparelho (localStorage), não
+vai para o Supabase. Sem chave, os dados são digitados à mão. O endereço de cada apto vem de
+uma tabela no `contrato.js` (Nastas = nº 585, Marieta = nº 522); apto novo pede o endereço uma
+vez e grava no painel. *Registrar morador no quarto* põe o nome no quarto e lança o aluguel
+previsto nos meses vazios até dezembro.
 
 ## Dados
 
