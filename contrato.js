@@ -335,6 +335,11 @@ const CSS=`
 #v-contrato .ct-paper mark{background:var(--ct-mark);color:inherit;border-radius:2px;padding:0 1px}
 #v-contrato .ct-paper mark.miss{background:var(--ct-miss);color:var(--ct-miss-ink);font-weight:700}
 #v-contrato .ct-reg{border-top:1px solid var(--line);padding-top:12px;margin-top:2px}
+#v-contrato .ct-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 2px 10px}
+#v-contrato .ct-topo h2.sec{margin:0}
+#v-contrato .ct-limpar{border:1px solid var(--line);background:var(--card);color:var(--mut);font:700 12px inherit;font-family:inherit;border-radius:10px;padding:11px 14px;margin:0}
+#v-contrato .ct-limpar:active{transform:scale(.97)}
+#v-contrato .ct-tacao{border:0;background:none;color:#1d4ed8;font:800 13.5px inherit;font-family:inherit;padding:6px 4px;margin:-6px 0 -6px 6px;text-decoration:underline}
 #v-contrato .ct-toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 84px);transform:translateX(-50%);z-index:70;background:var(--tx);color:#0d0f14;padding:10px 16px;border-radius:10px;font-size:13.5px;font-weight:600;max-width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
 `;
 
@@ -365,7 +370,7 @@ function valorTipico(q){ return q&&q.meses? moda(MESES.map(m=>q.meses[m]&&q.mese
 /* ---------- HTML da aba ---------- */
 function html(){
   return `<style>${CSS}</style>
-<h2 class="sec">Novo contrato de quarto</h2>
+<div class="ct-topo"><h2 class="sec">Novo contrato de quarto</h2><button type="button" class="ct-limpar" id="ct_limpar">Limpar</button></div>
 <div class="ct-card"><div class="ct-h"><b>1</b>Documentos do morador</div><div class="ct-stack">
   <label class="ct-drop" for="ct_arq"><b>Escolher fotos ou PDFs</b><span>RG, CNH, CPF, certidão. Pode tirar foto na hora.</span>
     <input type="file" id="ct_arq" multiple accept="image/*,application/pdf"></label>
@@ -454,7 +459,9 @@ function html(){
     <button type="button" class="ct-btn pri" id="ct_pdf">Baixar PDF</button>
     <button type="button" class="ct-btn" id="ct_share" hidden>Enviar PDF…</button>
     <button type="button" class="ct-btn gh" id="ct_copiar">Copiar texto</button>
+    <button type="button" class="ct-btn gh" id="ct_limpar2">Limpar e começar outro</button>
   </div>
+  <p class="ct-hint">Depois de baixar ou enviar o contrato e registrar o morador, o formulário limpa sozinho para o próximo.</p>
   <div class="ct-reg ct-stack" id="ct_reg">
     <span class="ct-lbl">REGISTRAR NO PAINEL</span>
     <div class="ct-f"><label for="ct_inqNome">Nome do inquilino no painel</label><input id="ct_inqNome" autocapitalize="characters"></div>
@@ -630,6 +637,7 @@ function registrar(){
   if(typeof save==='function') save();
   desenharQuartos(); atualizar();
   toast(nome+' registrado no '+q.quarto+(ref&&ref.y<=2026?' a partir de '+MESES_EXT[mi]:'')+(n?', aluguel lançado em '+n+(n>1?' meses.':' mês.'):'.'));
+  feito.morador=true; talvezConcluir();
 }
 
 /* ---------- leitura dos documentos (API do Claude) ---------- */
@@ -778,7 +786,7 @@ async function baixar(ext){
     const blob=await gerar(ext), url=URL.createObjectURL(blob), a=document.createElement('a');
     a.href=url; a.download=nomeArquivo(ext); document.body.append(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),30000);
-    toast(ext==='docx'?'Word gerado.':'PDF gerado.');
+    toast(ext==='docx'?'Word gerado.':'PDF gerado.'); feito.arquivo=true; talvezConcluir();
   }catch(e){ toast(e&&e.message==='lib'?'Sem internet para carregar o gerador. Tente de novo conectado.':'Não foi possível gerar o arquivo.'); }
   finally{ atualizar(); }
 }
@@ -786,11 +794,38 @@ async function compartilhar(){
   const btn=$('share'); btn.disabled=true;
   try{
     const blob=await gerar('pdf'), file=new File([blob],nomeArquivo('pdf'),{type:'application/pdf'});
-    await navigator.share({files:[file],title:file.name});
+    await navigator.share({files:[file],title:file.name}); feito.arquivo=true; talvezConcluir();
   }catch(e){ if(!(e&&e.name==='AbortError')) toast('Não deu para abrir o compartilhamento. Use "Baixar PDF".'); }
   finally{ atualizar(); }
 }
-let tt; function toast(t){ const el=$('toast'); el.textContent=t; el.hidden=false; clearTimeout(tt); tt=setTimeout(()=>el.hidden=true,3500); }
+let tt; function toast(t,acao){ const el=$('toast'); el.textContent=t; el.hidden=false; clearTimeout(tt);
+  if(acao){ const b=document.createElement('button'); b.type='button'; b.className='ct-tacao'; b.textContent=acao.rotulo;
+    b.onclick=()=>{ el.hidden=true; clearTimeout(tt); acao.fn(); }; el.append(' ',b); }
+  tt=setTimeout(()=>el.hidden=true,acao?7000:3500); }
+
+/* ---------- limpar (manual ou quando o contrato está concluído) ---------- */
+const ST0={sexo:'M',ai:-1,qi:-1,vencimento:5,meses:12,vencOutro:false};
+const feito={arquivo:false,morador:false};
+function fotografar(){ const campos={};
+  root.querySelectorAll('input[id],select[id],textarea[id]').forEach(e=>{ if(e.type==='file') return; campos[e.id]=e.type==='checkbox'?e.checked:e.value; });
+  return {campos, st:Object.assign({},st), tocado:[...tocado], arquivos:arquivos.slice()}; }
+function aplicarCampos(c){ Object.entries(c).forEach(([id,v])=>{ const e=document.getElementById(id); if(!e) return; if(e.type==='checkbox') e.checked=v; else e.value=v; }); }
+function restaurar(f){
+  Object.assign(st,f.st); tocado.clear(); f.tocado.forEach(k=>tocado.add(k)); arquivos=f.arquivos.slice();
+  aplicarCampos(f.campos); desenharVenc(); desenharMeses(); desenharAps(); desenharQuartos(); desenharValores(); desenharThumbs();
+  aplicarCampos(f.campos); sincronizar(); atualizar(); feito.arquivo=feito.morador=false;
+  toast('Contrato de volta, como estava.'); }
+function limpar(motivo){
+  if(ctl) try{ ctl.abort(); }catch(e){}
+  const f=fotografar();
+  tocado.clear(); Object.assign(st,ST0); arquivos=[]; feito.arquivo=feito.morador=false;
+  montado=false; window.Contrato.render(root);
+  const topo=root.getBoundingClientRect().top+scrollY-80; if(topo<scrollY) scrollTo({top:Math.max(0,topo),behavior:'smooth'});
+  /* as fotos dos documentos só são apagadas da memória quando já não dá mais para desfazer */
+  const soltar=()=>f.arquivos.forEach(a=>{ if(a.url&&!arquivos.includes(a)) URL.revokeObjectURL(a.url); });
+  setTimeout(soltar,8000);
+  toast(motivo||'Formulário limpo.',{rotulo:'Desfazer',fn:()=>restaurar(f)}); }
+function talvezConcluir(){ if(feito.arquivo&&feito.morador) setTimeout(()=>limpar('Contrato concluído: arquivo gerado e morador registrado. Formulário limpo para o próximo.'),900); }
 
 /* ---------- montagem ---------- */
 function ligar(){
@@ -821,6 +856,7 @@ function ligar(){
   $('copiar').onclick=async()=>{ const t=textoPlano(ultimo.blocks);
     try{ await navigator.clipboard.writeText(t); toast('Texto copiado.'); }catch(_){ const r=document.createRange(); r.selectNodeContents($('sheet')); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Texto selecionado. Copie pelo menu.'); } };
   $('registrar').onclick=registrar;
+  $('limpar').onclick=()=>limpar(); $('limpar2').onclick=()=>limpar();
 }
 window.Contrato={
   render(el){
