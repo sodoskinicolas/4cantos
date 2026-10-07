@@ -623,6 +623,18 @@ async function reduzir(file,max=1600){
     return await new Promise(ok=>c.toBlob(ok,'image/jpeg',0.88));
   } finally { URL.revokeObjectURL(url); }
 }
+const MODELO='claude-sonnet-5-5', MODELO_RESERVA='claude-haiku-4-5-20251001';
+function explicaErro(e){
+  const m=e.msg||'';
+  if(e.http===401||/x-api-key|authentication/i.test(m)) return 'A chave da API não foi aceita. Confira em "Configurar leitura automática".';
+  if(/credit balance|billing|purchase credits/i.test(m)) return 'Sua conta da API da Anthropic está sem créditos. Adicione créditos em console.anthropic.com (Billing) e toque em ler de novo.';
+  if(e.http===403) return 'A chave não tem permissão para usar a API ('+m.slice(0,120)+').';
+  if(e.http===429||e.http===529||/overloaded|rate limit/i.test(m)) return 'A API está ocupada ou o limite de uso foi atingido. Tente de novo em alguns minutos.';
+  if(e.http===413||/too large|exceeds|size/i.test(m)) return 'Arquivos grandes demais para a API. Mande menos fotos de uma vez ou um PDF por vez.';
+  if(/image|media_type|base64/i.test(m)) return 'A API não aceitou uma das imagens. Tire a foto de novo ou mande em PDF. Detalhe: '+m.slice(0,140);
+  if(/model/i.test(m)) return 'O modelo de leitura não está disponível nesta conta da API. Detalhe: '+m.slice(0,140);
+  return 'A API recusou o pedido (erro '+e.http+'): '+(m.slice(0,180)||'sem detalhe')+'.';
+}
 async function ler(){
   const c=cfgAI();
   if(!c||!c.key){ $('cfgbox').hidden=false; status('Para ler os documentos, cole a chave da API abaixo. Ou preencha os dados à mão.'); $('key').focus(); return; }
@@ -641,21 +653,23 @@ async function ler(){
     if(!content.length){ status(''); return; }
     content.push({type:'text',text:PROMPT});
     status('Lendo '+(content.length-1)+(content.length>2?' arquivos':' arquivo')+'… leva de 10 a 40 segundos.',1);
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:ctl.signal,
+    const chamar=model=>fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:ctl.signal,
       headers:{'content-type':'application/json','x-api-key':c.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:c.model||'claude-sonnet-5-5',max_tokens:1500,messages:[{role:'user',content}]})});
-    if(!r.ok){ const t=await r.text().catch(()=>''); throw {http:r.status,t}; }
+      body:JSON.stringify({model,max_tokens:1500,messages:[{role:'user',content}]})});
+    const falha=async r=>{ const t=await r.text().catch(()=>''); let m=''; try{ m=JSON.parse(t).error.message||''; }catch(_){ m=t.slice(0,200); } return {http:r.status,msg:m}; };
+    let r=await chamar(c.model||MODELO);
+    if(!r.ok){ let e=await falha(r);
+      // modelo indisponível nesta conta: tenta o modelo reserva uma vez
+      if((e.http===404||e.http===400)&&/model/i.test(e.msg)&&!c.model){ r=await chamar(MODELO_RESERVA); if(!r.ok) throw await falha(r); }
+      else throw e; }
     const j=await r.json(), txt=(j.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('');
     const a1=txt.indexOf('{'), a2=txt.lastIndexOf('}'); if(a1<0||a2<a1) throw {json:1};
     aplicar(JSON.parse(txt.slice(a1,a2+1)));
     status('Pronto. Os campos em verde vieram dos documentos. Confira cada um.');
   }catch(e){
     if(e&&e.name==='AbortError') status('Leitura interrompida.');
-    else if(e&&e.http===401) status('A chave da API não foi aceita. Confira em "Configurar leitura automática".');
-    else if(e&&(e.http===429||e.http===529)) status('A API está ocupada ou o limite de uso foi atingido. Tente de novo em alguns minutos.');
-    else if(e&&(e.http===400||e.http===413)) status('A API recusou os arquivos (formato ou tamanho). Tente fotos menores ou um PDF por vez.');
+    else if(e&&e.http) status(explicaErro(e));
     else if(e&&e.json) status('A resposta veio fora do formato. Toque em ler de novo.');
-    else if(e&&e.http) status('A API respondeu com erro '+e.http+'. Tente de novo.');
     else status('Sem conexão com a API agora. Confira a internet e tente de novo.');
   }finally{ $('parar').hidden=true; atualizarBtnLer(); }
 }
